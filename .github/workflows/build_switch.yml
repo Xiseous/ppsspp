@@ -63,9 +63,13 @@ jobs:
           libnx \
         || echo "Package installation had issues, continuing with pre-installed packages..."
         
-        # Verify essential tools are available
+        # Source environment and verify essential tools are available
+        . $DEVKITPRO/switchvars.sh
+        echo "DEVKITPRO=$DEVKITPRO"
+        echo "PATH=$PATH"
         which aarch64-none-elf-gcc || (echo "ERROR: aarch64-none-elf-gcc not found" && exit 1)
         which elf2nro || (echo "ERROR: elf2nro not found" && exit 1)
+        echo "All required tools found!"
 
     - name: Create git-version.cpp
       run: |
