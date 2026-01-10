@@ -43,12 +43,14 @@ jobs:
         git fetch --deepen=15000 --no-recurse-submodules --tags || true
 
     - name: Install Switch dependencies
+      shell: bash
       run: |
-        dkp-pacman -Syu --noconfirm
+        # The devkitpro Docker image already has most packages pre-installed
+        # Skip -Syu as it can cause 403 errors with GitHub Actions
+        # Only install packages that might be missing
         dkp-pacman -S --noconfirm --needed \
           switch-dev \
           switch-sdl2 \
-          switch-sdl2_ttf \
           switch-mesa \
           switch-glad \
           switch-glm \
@@ -58,8 +60,12 @@ jobs:
           switch-libpng \
           switch-freetype \
           switch-libjpeg-turbo \
-          devkitA64 \
-          libnx
+          libnx \
+        || echo "Package installation had issues, continuing with pre-installed packages..."
+        
+        # Verify essential tools are available
+        which aarch64-none-elf-gcc || (echo "ERROR: aarch64-none-elf-gcc not found" && exit 1)
+        which elf2nro || (echo "ERROR: elf2nro not found" && exit 1)
 
     - name: Create git-version.cpp
       run: |
