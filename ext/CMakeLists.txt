@@ -27,7 +27,9 @@ endif()
 
 # This works around a bug in cpu_features when ${CMAKE_BINARY_DIR} != ${CMAKE_CURRENT_BINRARY_DIR}.
 # We also disable the list_cpu_features binary.
-add_subdirectory(cmake/cpu_features EXCLUDE_FROM_ALL)
+if(NOT USE_LIBNX)
+	add_subdirectory(cmake/cpu_features EXCLUDE_FROM_ALL)
+endif()
 
 set(SKIP_GLSLANG_INSTALL ON CACHE BOOL "" FORCE)
 set(ENABLE_GLSLANG_INSTALL OFF)

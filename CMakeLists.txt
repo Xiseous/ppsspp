@@ -952,7 +952,11 @@ if(IOS)
 	target_compile_definitions(Common PUBLIC GLES_SILENCE_DEPRECATION)
 endif()
 
-target_link_libraries(Common Ext::Snappy cpu_features)
+if(USE_LIBNX)
+	target_link_libraries(Common Ext::Snappy)
+else()
+	target_link_libraries(Common Ext::Snappy cpu_features)
+endif()
 
 if(NOT LIBRETRO)
     target_link_libraries(Common imgui)
