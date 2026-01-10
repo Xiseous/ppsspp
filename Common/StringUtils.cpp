@@ -297,7 +297,7 @@ void DataToHexString(int indent, uint32_t startAddr, const uint8_t *data,
 std::string StringFromFormat(const char *format, ...) {
   va_list args;
   std::string temp;
-#ifdef _WIN32
+#if defined(_WIN32)
   int required = 0;
 
   va_start(args, format);
@@ -311,8 +311,7 @@ std::string StringFromFormat(const char *format, ...) {
     temp.resize(required);
   }
   va_end(args);
-#else
-#if PPSSPP_PLATFORM(SWITCH)
+#elif PPSSPP_PLATFORM(SWITCH) || defined(__SWITCH__)
   char tempBuf[2048];
   va_start(args, format);
   int written = vsnprintf(tempBuf, sizeof(tempBuf), format, args);
@@ -333,7 +332,6 @@ std::string StringFromFormat(const char *format, ...) {
     temp = buf;
     free(buf);
   }
-#endif
 #endif
   return temp;
 }
