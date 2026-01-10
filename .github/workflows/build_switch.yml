@@ -69,8 +69,9 @@ jobs:
         echo "#define PPSSPP_GIT_VERSION_NO_UPDATE 1" >> git-version.cpp
 
     - name: Configure CMake for Switch
+      shell: bash
       run: |
-        source $DEVKITPRO/switchvars.sh
+        . $DEVKITPRO/switchvars.sh
         mkdir -p build-switch
         cd build-switch
         cmake .. \
@@ -86,14 +87,16 @@ jobs:
           -DUNITTEST=OFF
 
     - name: Build PPSSPP for Switch
+      shell: bash
       run: |
-        source $DEVKITPRO/switchvars.sh
+        . $DEVKITPRO/switchvars.sh
         cd build-switch
         make -j$(nproc)
 
     - name: Generate NRO file
+      shell: bash
       run: |
-        source $DEVKITPRO/switchvars.sh
+        . $DEVKITPRO/switchvars.sh
         cd build-switch
         # Create the .nro file from the .elf
         if [ -f PPSSPPSDL ]; then
