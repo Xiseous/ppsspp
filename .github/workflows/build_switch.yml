@@ -53,6 +53,9 @@ jobs:
         # Fix sys/syscall.h missing on Switch in ThreadUtil.cpp
         sed -i 's/#include <sys\/syscall.h>/#if !PPSSPP_PLATFORM(SWITCH)\n#include <sys\/syscall.h>\n#endif/' Common/Thread/ThreadUtil.cpp
         
+        # virtmemReserve removed in newer libnx, replace with virtmemReserveStack
+        sed -i 's/virtmemReserve/virtmemReserveStack/g' Common/MemArenaHorizon.cpp
+        
         # Disable armips for Switch (filesystem library not compatible)
         sed -i 's/add_subdirectory(armips)/if(NOT USE_LIBNX)\n\tadd_subdirectory(armips)\nendif()/' ext/CMakeLists.txt
         
