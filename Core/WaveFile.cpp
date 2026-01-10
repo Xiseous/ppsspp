@@ -2,8 +2,6 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
-#include <string>
-
 #include "Core/WaveFile.h"
 #include "Common/Log.h"
 #include "Core/Config.h"
@@ -21,13 +19,13 @@ bool WaveFileWriter::Start(const Path &filename, unsigned int HLESampleRate)
 {
 	// Check if the file is already open
 	if (file) {
-		ERROR_LOG(SYSTEM, "The file %s was already open, the file header will not be written.", filename.c_str());
+		ERROR_LOG(Log::System, "The file %s was already open, the file header will not be written.", filename.c_str());
 		return false;
 	}
 
 	file.Open(filename, "wb");
 	if (!file) {
-		ERROR_LOG(IO, "The file %s could not be opened for writing. Please check if it's already opened by another program.", filename.c_str());
+		ERROR_LOG(Log::IO, "The file %s could not be opened for writing. Please check if it's already opened by another program.", filename.c_str());
 		return false;
 	}
 

@@ -18,11 +18,10 @@
 #pragma once
 
 #include <functional>
-#include <vector>
 #include <stdint.h>
 
 #include "Common/CodeBlock.h"
-#include "Common/Common.h"
+#include "Common/CommonTypes.h"
 
 namespace MIPSGen {
 
@@ -259,7 +258,7 @@ protected:
 	static void SetJumpTarget(const FixupBranch &branch, const void *dst);
 	static bool BInRange(const void *src, const void *dst);
 	static bool JInRange(const void *src, const void *dst);
-	FixupBranch MakeFixupBranch(FixupBranchType type);
+	FixupBranch MakeFixupBranch(FixupBranchType type) const;
 	void ApplyDelaySlot(std::function<void ()> delaySlot);
 
 private:

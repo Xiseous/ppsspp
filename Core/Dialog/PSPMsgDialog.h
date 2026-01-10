@@ -36,9 +36,6 @@
 
 #define SCE_UTILITY_MSGDIALOG_OPTION_SUPPORTED          0x000001B3 // OR of all options coded to display warning
 
-#define SCE_UTILITY_MSGDIALOG_ERROR_BADOPTION           0x80110501
-#define SCE_UTILITY_MSGDIALOG_ERROR_ERRORCODEINVALID    0x80110502
-
 struct pspMessageDialog
 {
 	pspUtilityDialogCommon common;
@@ -59,27 +56,24 @@ struct pspMessageDialog
 class PSPMsgDialog: public PSPDialog {
 public:
 	PSPMsgDialog(UtilityDialogType type);
-	virtual ~PSPMsgDialog();
+	~PSPMsgDialog();
 
-	virtual int Init(unsigned int paramAddr);
-	virtual int Update(int animSpeed) override;
-	virtual int Shutdown(bool force = false) override;
-	virtual void DoState(PointerWrap &p) override;
-	virtual pspUtilityDialogCommon *GetCommonParam() override;
+	int Init(unsigned int paramAddr);
+	int Update(int animSpeed) override;
+	int Shutdown(bool force = false) override;
+	void DoState(PointerWrap &p) override;
+	pspUtilityDialogCommon *GetCommonParam() override;
 
 	int Abort();
 
 protected:
-	virtual bool UseAutoStatus() override {
-		return false;
-	}
+	bool UseAutoStatus() override;
 
 private:
 	void FormatErrorCode(uint32_t code);
-	void DisplayMessage(std::string text, bool hasYesNo = false, bool hasOK = false);
+	void DisplayMessage(const std::string &text, bool hasYesNo = false, bool hasOK = false);
 
-	enum Flags
-	{
+	enum Flags {
 		DS_MSG          = 0x1,
 		DS_ERRORMSG     = 0x2,
 		DS_YESNO        = 0x4,
@@ -94,13 +88,8 @@ private:
 
 	u32 flag = 0;
 
-	pspMessageDialog messageDialog;
-	int messageDialogAddr;
+	pspMessageDialog messageDialog{};
+	int messageDialogAddr = 0;
 
-	char msgText[512];
-	int yesnoChoice;
-	float scrollPos_ = 0.0f;
-	int framesUpHeld_ = 0;
-	int framesDownHeld_ = 0;
+	char msgText[512]{};
 };
-

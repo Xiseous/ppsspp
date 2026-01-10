@@ -29,14 +29,14 @@
 
 static int scePauth_F7AA47F6(u32 srcPtr, int srcLength, u32 destLengthPtr, u32 workArea)
 {
-	auto src = Memory::GetPointer(srcPtr);
+	auto src = Memory::GetPointerWrite(srcPtr);
 	auto key = Memory::GetPointer(workArea);
 
 	const auto decryptResult = pspDecryptPRX(src, src, srcLength, key);
 
 	if (decryptResult < 0)
 	{
-		ERROR_LOG(HLE, "Pauth decryption failed 0x%08X", decryptResult);
+		ERROR_LOG(Log::HLE, "Pauth decryption failed 0x%08X", decryptResult);
 		return decryptResult;
 	}
 
@@ -46,14 +46,14 @@ static int scePauth_F7AA47F6(u32 srcPtr, int srcLength, u32 destLengthPtr, u32 w
 
 static int scePauth_98B83B5D(u32 srcPtr, int srcLength, u32 destLengthPtr, u32 workArea)
 {
-	auto src = Memory::GetPointer(srcPtr);
+	auto src = Memory::GetPointerWrite(srcPtr);
 	auto key = Memory::GetPointer(workArea);
 
 	const auto decryptResult = pspDecryptPRX(src, src, srcLength, key);
 
 	if (decryptResult < 0)
 	{
-		ERROR_LOG(HLE, "Pauth decryption failed 0x%08X", decryptResult);
+		ERROR_LOG(Log::HLE, "Pauth decryption failed 0x%08X", decryptResult);
 		return decryptResult;
 	}
 
@@ -68,5 +68,5 @@ const HLEFunction scePauth[] = {
 
 void Register_scePauth()
 {
-	RegisterModule("scePauth", ARRAY_SIZE(scePauth), scePauth);
+	RegisterHLEModule("scePauth", ARRAY_SIZE(scePauth), scePauth);
 }

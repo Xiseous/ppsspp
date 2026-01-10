@@ -20,7 +20,7 @@
 
 #include "Core/Config.h"
 #include "Core/MemMap.h"
-#include "Common/Common.h"
+#include "Common/CommonTypes.h"
 #include "Core/MIPS/MIPS.h"
 #include "Core/MIPS/MIPSCodeUtils.h"
 #include "Core/MIPS/x86/Jit.h"
@@ -126,6 +126,8 @@ void Jit::Comp_FPULS(MIPSOpcode op) {
 	s32 offset = _IMM16;
 	int ft = _FT;
 	MIPSGPReg rs = _RS;
+
+	CheckMemoryBreakpoint(0, rs, offset);
 
 	switch (op >> 26) {
 	case 49: //FI(ft) = Memory::Read_U32(addr); break; //lwc1

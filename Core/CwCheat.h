@@ -1,9 +1,9 @@
 // Rough and ready CwCheats implementation, disabled by default.
-// Will not enable by default until the TOOD:s have been addressed.
 
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -25,14 +25,8 @@ struct CheatLine {
 	uint32_t part2;
 };
 
-enum class CheatCodeFormat {
-	UNDEFINED,
-	CWCHEAT,
-	TEMPAR,
-};
-
 struct CheatCode {
-	CheatCodeFormat fmt;
+	std::string name;
 	std::vector<CheatLine> lines;
 };
 
@@ -46,27 +40,66 @@ struct CheatOperation;
 
 class CWCheatEngine {
 public:
-	CWCheatEngine(const std::string &gameID);
-	std::vector<CheatFileInfo> FileInfo();
+	CWCheatEngine(std::string_view gameID);
+	std::vector<CheatFileInfo> FileInfo() const;
 	void ParseCheats();
 	void CreateCheatFile();
-	Path CheatFilename();
+	const Path &CheatFilename() const {
+		return filename_;
+	}
 	void Run();
 	bool HasCheats();
-	void InvalidateICache(u32 addr, int size);
-private:
-	u32 GetAddress(u32 value);
+	static u32 GetAddress(u32 value) {
+		// TODO: This comment is weird:
+		// Returns static address used by ppsspp. Some games may not like this, and causes cheats to not work without offset
+		u32 address = (value + 0x08800000) & 0x3FFFFFFF;
+		return address;
+	}
 
-	CheatOperation InterpretNextOp(const CheatCode &cheat, size_t &i);
+private:
+	void InvalidateICache(u32 addr, int size) const;
+
 	CheatOperation InterpretNextCwCheat(const CheatCode &cheat, size_t &i);
-	CheatOperation InterpretNextTempAR(const CheatCode &cheat, size_t &i);
 
 	void ExecuteOp(const CheatOperation &op, const CheatCode &cheat, size_t &i);
-	void ApplyMemoryOperator(const CheatOperation &op, uint32_t(*oper)(uint32_t, uint32_t));
-	bool TestIf(const CheatOperation &op, bool(*oper)(int a, int b));
-	bool TestIfAddr(const CheatOperation &op, bool(*oper)(int a, int b));
+	inline void ApplyMemoryOperator(const CheatOperation &op, uint32_t(*oper)(uint32_t, uint32_t));
+	inline bool TestIf(const CheatOperation &op, bool(*oper)(int a, int b)) const;
+	inline bool TestIfAddr(const CheatOperation &op, bool(*oper)(int a, int b)) const;
 
 	std::vector<CheatCode> cheats_;
 	std::string gameID_;
 	Path filename_;
+};
+
+class CheatFileParser {
+public:
+	CheatFileParser(const Path &filename, std::string_view gameID = "");
+	~CheatFileParser();
+
+	bool Parse();
+
+	const std::vector<std::string> &GetErrors() const { return errors_; }
+	const std::vector<CheatCode> &GetCheats() const { return cheats_; }
+	const std::vector<CheatFileInfo> &GetFileInfo() const { return cheatInfo_; }
+
+protected:
+	void Flush();
+	void FlushCheatInfo();
+	void AddError(const std::string &msg, int lineNumber);
+	void ParseLine(const std::string &line, int lineNumber);
+	void ParseDataLine(const std::string &line, int lineNumber);
+	bool ValidateGameID(std::string_view gameID);
+
+	FILE *fp_ = nullptr;
+	std::string validGameID_;
+
+	int games_ = 0;
+	std::vector<std::string> errors_;
+	std::vector<CheatFileInfo> cheatInfo_;
+	std::vector<CheatCode> cheats_;
+	std::vector<CheatLine> pendingLines_;
+	CheatFileInfo lastCheatInfo_;
+	bool gameEnabled_ = true;
+	bool gameRiskyEnabled_ = false;
+	bool cheatEnabled_ = false;
 };

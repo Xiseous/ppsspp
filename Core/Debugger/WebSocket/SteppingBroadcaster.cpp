@@ -23,6 +23,9 @@
 #include "Core/System.h"
 
 struct CPUSteppingEvent {
+	CPUSteppingEvent(const SteppingReason &reason) : reason_(reason) {
+	}
+
 	operator std::string() {
 		JsonWriter j;
 		j.begin();
@@ -30,9 +33,16 @@ struct CPUSteppingEvent {
 		j.writeUint("pc", currentMIPS->pc);
 		// A double ought to be good enough for a 156 day debug session.
 		j.writeFloat("ticks", CoreTiming::GetTicks());
+		if (reason_.reason != BreakReason::None) {
+			j.writeString("reason", BreakReasonToString(reason_.reason));
+			j.writeUint("relatedAddress", reason_.relatedAddress);
+		}
 		j.end();
 		return j.str();
 	}
+
+private:
+	const SteppingReason &reason_;
 };
 
 // CPU has begun stepping (cpu.stepping)
@@ -40,17 +50,19 @@ struct CPUSteppingEvent {
 // Sent unexpectedly with these properties:
 //  - pc: number value of PC register (inaccurate unless stepping.)
 //  - ticks: number of CPU cycles into emulation.
+//  - reason: an optional property, if present, it's equal to the value submitted to Core_EnableStepping ("jit.branchdebug", "savestate.load", "ui.lost_focus", etc.)
+//  - relatedAddress: an optional address (often zero, but it can be a value of PC saved at some point, a related memory address, etc.), always present if 'reason' is present
 
 // CPU has resumed from stepping (cpu.resume)
 //
 // Sent unexpectedly with no other properties.
 void SteppingBroadcaster::Broadcast(net::WebSocketServer *ws) {
-	if (PSP_IsInited()) {
+	if (PSP_GetBootState() == BootState::Complete) {
 		int steppingCounter = Core_GetSteppingCounter();
 		// We ignore CORE_POWERDOWN as a stepping state.
-		if (coreState == CORE_STEPPING && steppingCounter != lastCounter_) {
-			ws->Send(CPUSteppingEvent());
-		} else if (prevState_ == CORE_STEPPING && coreState != CORE_STEPPING && Core_IsActive()) {
+		if (coreState == CORE_STEPPING_CPU && steppingCounter != lastCounter_) {
+			ws->Send(CPUSteppingEvent(Core_GetSteppingReason()));
+		} else if (prevState_ == CORE_STEPPING_CPU && coreState != CORE_STEPPING_CPU && Core_IsActive()) {
 			ws->Send(R"({"event":"cpu.resume"})");
 		}
 		lastCounter_ = steppingCounter;

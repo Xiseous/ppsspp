@@ -21,21 +21,28 @@
 
 #include "Common/Data/Collections/Hashmaps.h"
 #include "Common/GPU/OpenGL/GLRenderManager.h"
-#include "Common/File/Path.h"
 #include "GPU/Common/ShaderCommon.h"
 #include "GPU/Common/ShaderId.h"
 #include "GPU/Common/VertexShaderGenerator.h"
 #include "GPU/Common/FragmentShaderGenerator.h"
 
+class DrawEngineGLES;
 class Shader;
+class Path;
+struct ShaderLanguageDesc;
+
+namespace File {
+class IOFile;
+}
 
 class LinkedShader {
 public:
 	LinkedShader(GLRenderManager *render, VShaderID VSID, Shader *vs, FShaderID FSID, Shader *fs, bool useHWTransform, bool preloading = false);
 	~LinkedShader();
 
-	void use(const ShaderID &VSID);
-	void UpdateUniforms(u32 vertType, const ShaderID &VSID, bool useBufferedRendering);
+	void use(const ShaderID &VSID) const;
+	void UpdateUniforms(const ShaderID &VSID, bool useBufferedRendering, const ShaderLanguageDesc &shaderLanguage);
+	void Delete();
 
 	GLRenderManager *render_;
 	Shader *vs_;
@@ -52,6 +59,7 @@ public:
 	int u_stencilReplaceValue;
 	int u_tex;
 	int u_proj;
+	int u_proj_lens;
 	int u_proj_through;
 	int u_texenv;
 	int u_view;
@@ -60,6 +68,10 @@ public:
 	int u_depthRange;   // x,y = viewport xscale/xcenter. z,w=clipping minz/maxz (?)
 	int u_cullRangeMin;
 	int u_cullRangeMax;
+	int u_rotation;
+	int u_mipBias;
+	int u_scaleX;
+	int u_scaleY;
 
 #ifdef USE_BONE_ARRAY
 	int u_bone;  // array, size is numBones
@@ -90,8 +102,10 @@ public:
 	int u_uvscaleoffset;
 	int u_texclamp;
 	int u_texclampoff;
+	int u_texNoAlphaMul;
 
 	// Lighting
+	int u_lightControl;
 	int u_ambient;
 	int u_matambientalpha;
 	int u_matdiffuse;
@@ -114,13 +128,19 @@ public:
 
 // Real public interface
 
+struct ShaderDescGLES {
+	uint32_t glShaderType;
+	uint32_t attrMask;
+	uint64_t uniformMask;
+	bool useHWTransform;
+};
+
 class Shader {
 public:
-	Shader(GLRenderManager *render, const char *code, const std::string &desc, uint32_t glShaderType, bool useHWTransform, uint32_t attrMask, uint64_t uniformMask);
+	Shader(GLRenderManager *render, const char *code, const std::string &desc, const ShaderDescGLES &params);
 	~Shader();
 	GLRShader *shader;
 
-	bool Failed() const { return failed_; }
 	bool UseHWTransform() const { return useHWTransform_; }  // only relevant for vtx shaders
 
 	std::string GetShaderString(DebugShaderStringType type, ShaderID id) const;
@@ -131,42 +151,41 @@ public:
 private:
 	GLRenderManager *render_;
 	std::string source_;
-	bool failed_;
 	bool useHWTransform_;
 	bool isFragment_;
 	uint32_t attrMask_; // only used in vertex shaders
 	uint64_t uniformMask_;
 };
 
+class VertexDecoder;
+
 class ShaderManagerGLES : public ShaderManagerCommon {
 public:
 	ShaderManagerGLES(Draw::DrawContext *draw);
 	~ShaderManagerGLES();
 
-	void ClearCache(bool deleteThem);  // TODO: deleteThem currently not respected
+	void ClearShaders() override;
 
 	// This is the old ApplyShader split into two parts, because of annoying information dependencies.
 	// If you call ApplyVertexShader, you MUST call ApplyFragmentShader soon afterwards.
-	Shader *ApplyVertexShader(bool useHWTransform, bool useHWTessellation, u32 vertType, bool weightsAsFloat, VShaderID *VSID);
-	LinkedShader *ApplyFragmentShader(VShaderID VSID, Shader *vs, u32 vertType, bool useBufferedRendering);
+	Shader *ApplyVertexShader(bool useHWTransform, bool useHWTessellation, u32 vertexType, bool weightsAsFloat, bool useSkinInDecode, VShaderID *VSID);
+	LinkedShader *ApplyFragmentShader(VShaderID VSID, Shader *vs, const ComputedPipelineState &pipelineState, bool useBufferedRendering);
 
-	void DeviceLost();
-	void DeviceRestore(Draw::DrawContext *draw);
+	void DeviceLost() override;
+	void DeviceRestore(Draw::DrawContext *draw) override;
 
-	void DirtyShader();
 	void DirtyLastShader() override;
 
 	int GetNumVertexShaders() const { return (int)vsCache_.size(); }
 	int GetNumFragmentShaders() const { return (int)fsCache_.size(); }
 	int GetNumPrograms() const { return (int)linkedShaderCache_.size(); }
 
-	std::vector<std::string> DebugGetShaderIDs(DebugShaderType type);
-	std::string DebugGetShaderString(std::string id, DebugShaderType type, DebugShaderStringType stringType);
+	std::vector<std::string> DebugGetShaderIDs(DebugShaderType type) override;
+	std::string DebugGetShaderString(std::string id, DebugShaderType type, DebugShaderStringType stringType) override;
 
-	void Load(const Path &filename);
-	bool ContinuePrecompile(float sliceTime = 1.0f / 60.0f);
-	void CancelPrecompile();
-	void Save(const Path &filename);
+	static bool LoadCacheFlags(File::IOFile &f, DrawEngineGLES *drawEngine);
+	bool LoadCache(File::IOFile &f);
+	void SaveCache(const Path &filename, DrawEngineGLES *drawEngine);
 
 private:
 	void Clear();
@@ -186,7 +205,7 @@ private:
 	GLRenderManager *render_;
 	LinkedShaderCache linkedShaderCache_;
 
-	bool lastVShaderSame_;
+	bool lastVShaderSame_ = false;
 
 	FShaderID lastFSID_;
 	VShaderID lastVSID_;
@@ -195,34 +214,9 @@ private:
 	u64 shaderSwitchDirtyUniforms_ = 0;
 	char *codeBuffer_;
 
-	typedef DenseHashMap<FShaderID, Shader *, nullptr> FSCache;
+	typedef DenseHashMap<FShaderID, Shader *> FSCache;
 	FSCache fsCache_;
 
-	typedef DenseHashMap<VShaderID, Shader *, nullptr> VSCache;
+	typedef DenseHashMap<VShaderID, Shader *> VSCache;
 	VSCache vsCache_;
-
-	bool diskCacheDirty_ = false;
-	struct {
-		std::vector<VShaderID> vert;
-		std::vector<FShaderID> frag;
-		std::vector<std::pair<VShaderID, FShaderID>> link;
-
-		size_t vertPos = 0;
-		size_t fragPos = 0;
-		size_t linkPos = 0;
-		double start;
-
-		void Clear() {
-			vert.clear();
-			frag.clear();
-			link.clear();
-			vertPos = 0;
-			fragPos = 0;
-			linkPos = 0;
-		}
-
-		bool Done() {
-			return vertPos >= vert.size() && fragPos >= frag.size() && linkPos >= link.size();
-		}
-	} diskCachePending_;
 };

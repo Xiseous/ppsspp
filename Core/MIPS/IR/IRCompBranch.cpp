@@ -56,7 +56,7 @@ namespace MIPSComp
 
 void IRFrontend::BranchRSRTComp(MIPSOpcode op, IRComparison cc, bool likely) {
 	if (js.inDelaySlot) {
-		ERROR_LOG_REPORT(JIT, "Branch in RSRTComp delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
+		ERROR_LOG_REPORT(Log::JIT, "Branch in RSRTComp delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
 		return;
 	}
 	int offset = TARGET16;
@@ -64,15 +64,16 @@ void IRFrontend::BranchRSRTComp(MIPSOpcode op, IRComparison cc, bool likely) {
 	MIPSGPReg rs = _RS;
 	u32 targetAddr = GetCompilerPC() + offset + 4;
 
-	MIPSOpcode delaySlotOp = GetOffsetInstruction(1);
-	js.downcountAmount += MIPSGetInstructionCycleEstimate(delaySlotOp);
-	bool delaySlotIsNice = IsDelaySlotNiceReg(op, delaySlotOp, rt, rs);
+	BranchInfo branchInfo(GetCompilerPC(), op, GetOffsetInstruction(1), false, likely);
+	branchInfo.delaySlotIsNice = IsDelaySlotNiceReg(op, branchInfo.delaySlotOp, rt, rs);
+
+	js.downcountAmount += MIPSGetInstructionCycleEstimate(branchInfo.delaySlotOp);
 
 	// Often, div/divu are followed by a likely "break" if the divisor was zero.
 	// Stalling is not really useful for us, so we optimize this out.
-	if (likely && offset == 4 && MIPS_IS_BREAK(delaySlotOp)) {
+	if (likely && offset == 4 && MIPS_IS_BREAK(branchInfo.delaySlotOp)) {
 		// Okay, let's not actually branch at all.  We're done here.
-		EatInstruction(delaySlotOp);
+		EatInstruction(branchInfo.delaySlotOp);
 		// Let's not double-count the downcount, though.
 		js.downcountAmount--;
 		return;
@@ -80,7 +81,7 @@ void IRFrontend::BranchRSRTComp(MIPSOpcode op, IRComparison cc, bool likely) {
 
 	MIPSGPReg lhs = rs;
 	MIPSGPReg rhs = rt;
-	if (!delaySlotIsNice && !likely) {  // if likely, we don't need this
+	if (!branchInfo.delaySlotIsNice && !likely) {  // if likely, we don't need this
 		if (rs != 0) {
 			ir.Write(IROp::Mov, IRTEMP_LHS, rs);
 			lhs = (MIPSGPReg)IRTEMP_LHS;
@@ -91,7 +92,7 @@ void IRFrontend::BranchRSRTComp(MIPSOpcode op, IRComparison cc, bool likely) {
 		}
 	}
 
-	if (!likely)
+	if (!likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
 
 	int dcAmount = js.downcountAmount;
@@ -99,10 +100,18 @@ void IRFrontend::BranchRSRTComp(MIPSOpcode op, IRComparison cc, bool likely) {
 	js.downcountAmount = 0;
 
 	FlushAll();
-	ir.Write(ComparisonToExit(cc), ir.AddConstant(GetCompilerPC() + 8), lhs, rhs);
+	ir.Write(ComparisonToExit(cc), ir.AddConstant(ResolveNotTakenTarget(branchInfo)), lhs, rhs);
 	// This makes the block "impure" :(
-	if (likely)
+	if (likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
+	if (branchInfo.delaySlotIsBranch) {
+		// We still link when the branch is taken (targetAddr case.)
+		// Remember, it's from the perspective of the delay slot, so +12.
+		if ((branchInfo.delaySlotInfo & OUT_RA) != 0)
+			ir.WriteSetConstant(MIPS_REG_RA, GetCompilerPC() + 12);
+		if ((branchInfo.delaySlotInfo & OUT_RD) != 0)
+			ir.WriteSetConstant(MIPS_GET_RD(branchInfo.delaySlotOp), GetCompilerPC() + 12);
+	}
 
 	FlushAll();
 	ir.Write(IROp::ExitToConst, ir.AddConstant(targetAddr));
@@ -114,26 +123,27 @@ void IRFrontend::BranchRSRTComp(MIPSOpcode op, IRComparison cc, bool likely) {
 
 void IRFrontend::BranchRSZeroComp(MIPSOpcode op, IRComparison cc, bool andLink, bool likely) {
 	if (js.inDelaySlot) {
-		ERROR_LOG_REPORT(JIT, "Branch in RSZeroComp delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
+		ERROR_LOG_REPORT(Log::JIT, "Branch in RSZeroComp delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
 		return;
 	}
 	int offset = TARGET16;
 	MIPSGPReg rs = _RS;
 	u32 targetAddr = GetCompilerPC() + offset + 4;
 
-	MIPSOpcode delaySlotOp = GetOffsetInstruction(1);
-	js.downcountAmount += MIPSGetInstructionCycleEstimate(delaySlotOp);
-	bool delaySlotIsNice = IsDelaySlotNiceReg(op, delaySlotOp, rs);
+	BranchInfo branchInfo(GetCompilerPC(), op, GetOffsetInstruction(1), andLink, likely);
+	branchInfo.delaySlotIsNice = IsDelaySlotNiceReg(op, branchInfo.delaySlotOp, rs);
+
+	js.downcountAmount += MIPSGetInstructionCycleEstimate(branchInfo.delaySlotOp);
 
 	MIPSGPReg lhs = rs;
-	if (!delaySlotIsNice) {  // if likely, we don't need this
+	if (!branchInfo.delaySlotIsNice) {  // if likely, we don't need this
 		ir.Write(IROp::Mov, IRTEMP_LHS, rs);
 		lhs = (MIPSGPReg)IRTEMP_LHS;
 	}
 	if (andLink)
 		ir.WriteSetConstant(MIPS_REG_RA, GetCompilerPC() + 8);
 
-	if (!likely)
+	if (!likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
 
 	int dcAmount = js.downcountAmount;
@@ -141,9 +151,18 @@ void IRFrontend::BranchRSZeroComp(MIPSOpcode op, IRComparison cc, bool andLink, 
 	js.downcountAmount = 0;
 
 	FlushAll();
-	ir.Write(ComparisonToExit(cc), ir.AddConstant(GetCompilerPC() + 8), lhs);
-	if (likely)
+	ir.Write(ComparisonToExit(cc), ir.AddConstant(ResolveNotTakenTarget(branchInfo)), lhs);
+	if (likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
+	if (branchInfo.delaySlotIsBranch) {
+		// We still link when the branch is taken (targetAddr case.)
+		// Remember, it's from the perspective of the delay slot, so +12.
+		if ((branchInfo.delaySlotInfo & OUT_RA) != 0)
+			ir.WriteSetConstant(MIPS_REG_RA, GetCompilerPC() + 12);
+		if ((branchInfo.delaySlotInfo & OUT_RD) != 0)
+			ir.WriteSetConstant(MIPS_GET_RD(branchInfo.delaySlotOp), GetCompilerPC() + 12);
+	}
+
 	// Taken
 	FlushAll();
 	ir.Write(IROp::ExitToConst, ir.AddConstant(targetAddr));
@@ -193,14 +212,16 @@ void IRFrontend::Comp_RelBranchRI(MIPSOpcode op) {
 // If likely is set, discard the branch slot if NOT taken.
 void IRFrontend::BranchFPFlag(MIPSOpcode op, IRComparison cc, bool likely) {
 	if (js.inDelaySlot) {
-		ERROR_LOG_REPORT(JIT, "Branch in FPFlag delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
+		ERROR_LOG_REPORT(Log::JIT, "Branch in FPFlag delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
 		return;
 	}
 	int offset = TARGET16;
 	u32 targetAddr = GetCompilerPC() + offset + 4;
 
+	BranchInfo branchInfo(GetCompilerPC(), op, GetOffsetInstruction(1), false, likely);
+
 	ir.Write(IROp::FpCondToReg, IRTEMP_LHS);
-	if (!likely)
+	if (!likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
 
 	int dcAmount = js.downcountAmount;
@@ -209,10 +230,19 @@ void IRFrontend::BranchFPFlag(MIPSOpcode op, IRComparison cc, bool likely) {
 
 	FlushAll();
 	// Not taken
-	ir.Write(ComparisonToExit(cc), ir.AddConstant(GetCompilerPC() + 8), IRTEMP_LHS, 0);
+	ir.Write(ComparisonToExit(cc), ir.AddConstant(ResolveNotTakenTarget(branchInfo)), IRTEMP_LHS, 0);
 	// Taken
-	if (likely)
+	if (likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
+	if (branchInfo.delaySlotIsBranch) {
+		// We still link when the branch is taken (targetAddr case.)
+		// Remember, it's from the perspective of the delay slot, so +12.
+		if ((branchInfo.delaySlotInfo & OUT_RA) != 0)
+			ir.WriteSetConstant(MIPS_REG_RA, GetCompilerPC() + 12);
+		if ((branchInfo.delaySlotInfo & OUT_RD) != 0)
+			ir.WriteSetConstant(MIPS_GET_RD(branchInfo.delaySlotOp), GetCompilerPC() + 12);
+	}
+
 	FlushAll();
 	ir.Write(IROp::ExitToConst, ir.AddConstant(targetAddr));
 
@@ -236,40 +266,43 @@ void IRFrontend::Comp_FPUBranch(MIPSOpcode op) {
 // If likely is set, discard the branch slot if NOT taken.
 void IRFrontend::BranchVFPUFlag(MIPSOpcode op, IRComparison cc, bool likely) {
 	if (js.inDelaySlot) {
-		ERROR_LOG_REPORT(JIT, "Branch in VFPU delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
+		ERROR_LOG_REPORT(Log::JIT, "Branch in VFPU delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
 		return;
 	}
 	int offset = TARGET16;
 	u32 targetAddr = GetCompilerPC() + offset + 4;
 
-	MIPSOpcode delaySlotOp = GetOffsetInstruction(1);
-	js.downcountAmount += MIPSGetInstructionCycleEstimate(delaySlotOp);
+	BranchInfo branchInfo(GetCompilerPC(), op, GetOffsetInstruction(1), false, likely);
+
+	js.downcountAmount += MIPSGetInstructionCycleEstimate(branchInfo.delaySlotOp);
 	ir.Write(IROp::VfpuCtrlToReg, IRTEMP_LHS, VFPU_CTRL_CC);
 
 	// Sometimes there's a VFPU branch in a delay slot (Disgaea 2: Dark Hero Days, Zettai Hero Project, La Pucelle)
 	// The behavior is undefined - the CPU may take the second branch even if the first one passes.
 	// However, it does consistently try each branch, which these games seem to expect.
-	bool delaySlotIsBranch = MIPSCodeUtils::IsVFPUBranch(delaySlotOp);
-	if (!likely)
+	if (!likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
 
 	int dcAmount = js.downcountAmount;
 	ir.Write(IROp::Downcount, 0, ir.AddConstant(dcAmount));
 	js.downcountAmount = 0;
 
-	if (delaySlotIsBranch && (signed short)(delaySlotOp & 0xFFFF) != (signed short)(op & 0xFFFF) - 1)
-		ERROR_LOG_REPORT(JIT, "VFPU branch in VFPU delay slot at %08x with different target", GetCompilerPC());
-
 	int imm3 = (op >> 18) & 7;
-
-	u32 notTakenTarget = GetCompilerPC() + (delaySlotIsBranch ? 4 : 8);
 
 	ir.Write(IROp::AndConst, IRTEMP_LHS, IRTEMP_LHS, ir.AddConstant(1 << imm3));
 	FlushAll();
-	ir.Write(ComparisonToExit(cc), ir.AddConstant(notTakenTarget), IRTEMP_LHS, 0);
+	ir.Write(ComparisonToExit(cc), ir.AddConstant(ResolveNotTakenTarget(branchInfo)), IRTEMP_LHS, 0);
 
-	if (likely)
+	if (likely && !branchInfo.delaySlotIsBranch)
 		CompileDelaySlot();
+	if (branchInfo.delaySlotIsBranch) {
+		// We still link when the branch is taken (targetAddr case.)
+		// Remember, it's from the perspective of the delay slot, so +12.
+		if ((branchInfo.delaySlotInfo & OUT_RA) != 0)
+			ir.WriteSetConstant(MIPS_REG_RA, GetCompilerPC() + 12);
+		if ((branchInfo.delaySlotInfo & OUT_RD) != 0)
+			ir.WriteSetConstant(MIPS_GET_RD(branchInfo.delaySlotOp), GetCompilerPC() + 12);
+	}
 
 	// Taken
 	FlushAll();
@@ -291,7 +324,7 @@ void IRFrontend::Comp_VBranch(MIPSOpcode op) {
 
 void IRFrontend::Comp_Jump(MIPSOpcode op) {
 	if (js.inDelaySlot) {
-		ERROR_LOG_REPORT(JIT, "Branch in Jump delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
+		ERROR_LOG_REPORT(Log::JIT, "Branch in Jump delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
 		return;
 	}
 
@@ -301,10 +334,7 @@ void IRFrontend::Comp_Jump(MIPSOpcode op) {
 	// Might be a stubbed address or something?
 	if (!Memory::IsValidAddress(targetAddr)) {
 		// If preloading, flush - this block will likely be fixed later.
-		if (js.preloading)
-			js.cancel = true;
-		else
-			ERROR_LOG_REPORT(JIT, "Jump to invalid address: %08x", targetAddr);
+		ERROR_LOG(Log::JIT, "Jump to invalid address: %08x", targetAddr);
 		// TODO: Mark this block dirty or something?  May be indication it will be changed by imports.
 		// Continue so the block gets completed and crashes properly.
 	}
@@ -338,7 +368,7 @@ void IRFrontend::Comp_Jump(MIPSOpcode op) {
 
 void IRFrontend::Comp_JumpReg(MIPSOpcode op) {
 	if (js.inDelaySlot) {
-		ERROR_LOG_REPORT(JIT, "Branch in JumpReg delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
+		ERROR_LOG_REPORT(Log::JIT, "Branch in JumpReg delay slot at %08x in block starting at %08x", GetCompilerPC(), js.blockStart);
 		return;
 	}
 	MIPSGPReg rs = _RS;
@@ -422,6 +452,7 @@ void IRFrontend::Comp_Syscall(MIPSOpcode op) {
 }
 
 void IRFrontend::Comp_Break(MIPSOpcode op) {
+	ir.Write(IROp::SetPCConst, 0, ir.AddConstant(GetCompilerPC()));
 	ir.Write(IROp::Break);
 	js.compiling = false;
 }

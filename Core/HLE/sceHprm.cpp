@@ -22,36 +22,38 @@
 #include "Core/MIPS/MIPS.h"
 
 static u32 sceHprmPeekCurrentKey(u32 keyAddress) {
-	DEBUG_LOG(HLE,"0=sceHprmPeekCurrentKey(ptr)");
 	Memory::Write_U32(0, keyAddress);
-	return 0;
+	return hleLogDebug(Log::HLE, 0);
 }
 
 // TODO: Might make sense to reflect the headphone status of the host here,
 // if the games adjust their sound.
 static u32 sceHprmIsHeadphoneExist() {
-	DEBUG_LOG(HLE, "sceHprmIsHeadphoneExist()");
-	return 0;
+	return hleLogDebug(Log::HLE, 0);
 }
 
 static u32 sceHprmIsMicrophoneExist() {
-	DEBUG_LOG(HLE, "sceHprmIsMicrophoneExist()");
-	return 0;
+	return hleLogDebug(Log::HLE, 0);
 }
 
 static u32 sceHprmIsRemoteExist() {
-	DEBUG_LOG(HLE, "sceHprmIsRemoteExist()");
-	return 0;
+	return hleLogDebug(Log::HLE, 0);
+}
+
+static u32 sceHprmRegisterCallback() {
+	return hleLogError(Log::HLE, 0, "UNIMPL");
+}
+
+static u32 sceHprmUnregisterCallback() {
+	return hleLogError(Log::HLE, 0, "UNIMPL");
 }
 
 static u32 sceHprmPeekLatch(u32 latchAddr) {
-	DEBUG_LOG(HLE,"sceHprmPeekLatch latchAddr %08x",latchAddr);
-	return 0;
+	return hleLogDebug(Log::HLE,0, "latchAddr %08x", latchAddr);
 }
 
 static u32 sceHprmReadLatch(u32 latchAddr) {
-	DEBUG_LOG(HLE,"sceHprmReadLatch latchAddr %08x",latchAddr);
-	return 0;
+	return hleLogDebug(Log::HLE, 0, "latchAddr %08x", latchAddr);
 }
 
 const HLEFunction sceHprm[] = 
@@ -61,7 +63,8 @@ const HLEFunction sceHprm[] =
 	{0X208DB1BD, &WrapU_V<sceHprmIsRemoteExist>,     "sceHprmIsRemoteExist",      'x', "" },
 	{0X7E69EDA4, &WrapU_V<sceHprmIsHeadphoneExist>,  "sceHprmIsHeadphoneExist",   'x', "" },
 	{0X219C58F1, &WrapU_V<sceHprmIsMicrophoneExist>, "sceHprmIsMicrophoneExist",  'x', "" },
-	{0XC7154136, nullptr,                            "sceHprmRegisterCallback",   '?', "" },
+	{0XC7154136, &WrapU_V<sceHprmRegisterCallback>,  "sceHprmRegisterCallback",   'x', "" },
+	{0xFD7DE6CD, &WrapU_V<sceHprmUnregisterCallback>,"sceHprmUnregisterCallback", 'x', "" },
 	{0X444ED0B7, nullptr,                            "sceHprmUnregitserCallback", '?', "" }, // Typo.
 	{0X2BCEC83E, &WrapU_U<sceHprmPeekLatch>,         "sceHprmPeekLatch",          'x', "x"},
 	{0X40D2F9F0, &WrapU_U<sceHprmReadLatch>,         "sceHprmReadLatch",          'x', "x"},
@@ -69,5 +72,5 @@ const HLEFunction sceHprm[] =
 
 void Register_sceHprm()
 {
-	RegisterModule("sceHprm", ARRAY_SIZE(sceHprm), sceHprm);
+	RegisterHLEModule("sceHprm", ARRAY_SIZE(sceHprm), sceHprm);
 }

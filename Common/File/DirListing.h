@@ -1,11 +1,10 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
-
 #include <cstdio>
-
-#include <inttypes.h>
+#include <cstdint>
 
 #include "Common/File/Path.h"
 
@@ -18,6 +17,7 @@ struct FileInfo {
 	bool isDirectory = false;
 	bool isWritable = false;
 	uint64_t size = 0;
+
 
 	uint64_t atime = 0;
 	uint64_t mtime = 0;
@@ -34,8 +34,9 @@ enum {
 	GETFILES_GET_NAVIGATION_ENTRIES = 2,  // If you don't set this, "." and ".." will be skipped.
 };
 
-bool GetFilesInDir(const Path &directory, std::vector<FileInfo> *files, const char *filter = nullptr, int flags = 0);
-std::vector<File::FileInfo> ApplyFilter(std::vector<File::FileInfo> files, const char *filter);
+// Note: extensionFilter is ignored for directories, so you can recurse.
+bool GetFilesInDir(const Path &directory, std::vector<FileInfo> *files, const char *extensionFilter = nullptr, int flags = 0, std::string_view prefix = std::string_view());
+std::vector<File::FileInfo> ApplyFilter(std::vector<File::FileInfo> files, const char *extensionFilter, std::string_view prefix);
 
 #ifdef _WIN32
 std::vector<std::string> GetWindowsDrives();

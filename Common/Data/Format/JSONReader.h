@@ -1,16 +1,16 @@
+#pragma once
+
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include "ext/gason/gason.h"
 #include "Common/Common.h"
-#include "Common/Log.h"
 
 namespace json {
 
 struct JsonGet {
-	JsonGet(const JsonValue &value) : value_(value) {
-	}
+	JsonGet(const JsonValue &value) : value_(value) {}
 
 	int numChildren() const;
 	const JsonNode *get(const char *child_name) const;
@@ -21,8 +21,9 @@ struct JsonGet {
 	const JsonGet getDict(const char *child_name) const {
 		return JsonGet(get(child_name, JSON_OBJECT)->value);
 	}
-	const char *getStringOrDie(const char *child_name) const;
-	const char *getString(const char *child_name, const char *default_value) const;
+	const char *getStringOrNull(const char *child_name) const;
+	const char *getStringOr(const char *child_name, const char *default_value) const;
+	bool getString(const char *child_name, std::string *output) const;
 	bool getStringVector(std::vector<std::string> *vec) const;
 	double getFloat(const char *child_name) const;
 	double getFloat(const char *child_name, double default_value) const;
@@ -46,19 +47,21 @@ struct JsonGet {
 class JsonReader {
 public:
 	JsonReader(const std::string &filename);
-	JsonReader(const void *data, size_t size) {
+	// Makes a copy, after this returns you can free the input buffer. Zero termination is not necessary.
+	JsonReader(const char *data, size_t size) {
 		buffer_ = (char *)malloc(size + 1);
-		memcpy(buffer_, data, size);
-		buffer_[size] = 0;
-		parse();
+		if (buffer_) {
+			memcpy(buffer_, data, size);
+			buffer_[size] = 0;
+			parse();
+		}
 	}
 	JsonReader(const JsonNode *node) {
 		ok_ = true;
 	}
 
 	~JsonReader() {
-		if (buffer_)
-			free(buffer_);
+		free(buffer_);
 	}
 
 	bool ok() const { return ok_; }
@@ -69,16 +72,7 @@ public:
 	const JsonValue rootValue() const { return root_; }
 
 private:
-	bool parse() {
-		char *error_pos;
-		int status = jsonParse(buffer_, &error_pos, &root_, alloc_);
-		if (status != JSON_OK) {
-			ERROR_LOG(IO, "Error at (%i): %s\n%s\n\n", (int)(error_pos - buffer_), jsonStrError(status), error_pos);
-			return false;
-		}
-		ok_ = true;
-		return true;
-	}
+	bool parse();
 
 	char *buffer_ = nullptr;
 	JsonAllocator alloc_;

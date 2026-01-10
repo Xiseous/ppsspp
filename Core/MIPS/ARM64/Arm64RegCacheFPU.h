@@ -17,10 +17,7 @@
 
 #pragma once
 
-#pragma once
-
-#include "../MIPS.h"
-#include "../MIPSAnalyst.h"
+#include "Core/MIPS/MIPS.h"
 #include "Core/MIPS/ARM64/Arm64RegCache.h"
 #include "Core/MIPS/MIPSVFPUUtils.h"
 #include "Common/Arm64Emitter.h"
@@ -45,6 +42,10 @@ enum {
 };
 
 }
+
+namespace MIPSAnalyst {
+struct AnalysisResults;
+};
 
 struct FPURegARM64 {
 	int mipsReg;  // if -1, no mipsreg attached.
@@ -162,7 +163,6 @@ private:
 	MIPSComp::JitOptions *jo_;
 
 	int numARMFpuReg_;
-	int qTime_;
 
 	enum {
 		// On ARM64, each of the 32 registers are full 128-bit. No sharing of components!

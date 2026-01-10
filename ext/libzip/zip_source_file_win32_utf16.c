@@ -30,6 +30,9 @@
   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
   IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+#ifdef MS_UWP
+#include <fileapifromapp.h>
+#endif
 
 #include "zip_source_file_win32.h"
 
@@ -38,6 +41,29 @@ static HANDLE __stdcall utf16_create_file(const char *name, DWORD access, DWORD 
 static void utf16_make_tempname(char *buf, size_t len, const char *name, zip_uint32_t i);
 static char *utf16_strdup(const char *string);
 
+#ifdef MS_UWP
+static BOOL __stdcall GetFileAttr(const void* name, GET_FILEEX_INFO_LEVELS info_level, void* lpFileInformation) {
+	BOOL state = GetFileAttributesExFromAppW(name, info_level, lpFileInformation);
+	return state;
+}
+
+static BOOL __stdcall DelFile(const void* name) {
+	BOOL state = DeleteFileFromAppW(name);
+	return state;
+}
+
+zip_win32_file_operations_t ops_utf16 = {
+	utf16_allocate_tempname,
+	utf16_create_file,
+	DelFile,
+	GetFileAttributesW,
+	GetFileAttr,
+	utf16_make_tempname,
+	MoveFileExW,
+	SetFileAttributesW,
+	utf16_strdup
+};
+#else
 zip_win32_file_operations_t ops_utf16 = {
     utf16_allocate_tempname,
     utf16_create_file,
@@ -49,6 +75,7 @@ zip_win32_file_operations_t ops_utf16 = {
     SetFileAttributesW,
     utf16_strdup
 };
+#endif
 
 ZIP_EXTERN zip_source_t *
 zip_source_win32w(zip_t *za, const wchar_t *fname, zip_uint64_t start, zip_int64_t len) {
@@ -92,7 +119,7 @@ utf16_create_file(const char *name, DWORD access, DWORD share_mode, PSECURITY_AT
 
     return CreateFile2((const wchar_t *)name, access, share_mode, creation_disposition, &extParams);
 #else
-    return CreateFile2((const wchar_t *)name, access, share_mode, creation_disposition, NULL);
+    return CreateFile2FromAppW((const wchar_t *)name, access, share_mode, creation_disposition, NULL);
 #endif
 #else
     return CreateFileW((const wchar_t *)name, access, share_mode, security_attributes, creation_disposition, file_attributes, template_file);
