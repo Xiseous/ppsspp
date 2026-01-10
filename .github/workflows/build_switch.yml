@@ -53,8 +53,19 @@ jobs:
         # Fix sys/syscall.h missing on Switch in ThreadUtil.cpp
         sed -i 's/#include <sys\/syscall.h>/#if !PPSSPP_PLATFORM(SWITCH)\n#include <sys\/syscall.h>\n#endif/' Common/Thread/ThreadUtil.cpp
         
-        # virtmemReserve removed in newer libnx, replace with virtmemReserveStack
-        sed -i 's/virtmemReserve/virtmemReserveStack/g' Common/MemArenaHorizon.cpp
+        # Patch MemArenaHorizon.cpp to use virtmemFindAslr (new libnx API)
+        # 1. Insert helper function
+        sed -i '/#include "Common\/MemArena.h"/a \
+        static void* MyVirtmemReserve(size_t size) {\n\
+            virtmemLock();\n\
+            void* addr = virtmemFindAslr(size, 0x1000);\n\
+            if (addr) virtmemAddReservation(addr, size);\n\
+            virtmemUnlock();\n\
+            return addr;\n\
+        }' Common/MemArenaHorizon.cpp
+        
+        # 2. Replace calls
+        sed -i 's/virtmemReserve/MyVirtmemReserve/g' Common/MemArenaHorizon.cpp
         
         # Disable armips for Switch (filesystem library not compatible)
         sed -i 's/add_subdirectory(armips)/if(NOT USE_LIBNX)\n\tadd_subdirectory(armips)\nendif()/' ext/CMakeLists.txt
@@ -223,14 +234,6 @@ jobs:
           -DUNITTEST=OFF \
           -DCMAKE_DISABLE_FIND_PACKAGE_SDL2_ttf=ON \
           -DCMAKE_DISABLE_FIND_PACKAGE_Fontconfig=ON
-
-    - name: Debug libnx headers
-      shell: bash
-      run: |
-        . $DEVKITPRO/switchvars.sh
-        echo "Searching for virtmem in libnx headers..."
-        grep -r "virtmem" $DEVKITPRO/libnx/include/ || echo "virtmem not found separately"
-        grep -r "Virtmem" $DEVKITPRO/libnx/include/ || echo "Virtmem not found separately"
 
     - name: Build PPSSPP for Switch
       shell: bash
