@@ -161,8 +161,10 @@ add_library(CpuFeature::cpu_features ALIAS cpu_features)
 
 #
 # Install cpu_features and list_cpu_features
+# Skip installation for Switch (USE_LIBNX) as we don't need it
 #
 
+if(NOT USE_LIBNX)
 include(GNUInstallDirs)
 install(TARGETS cpu_features
   EXPORT CpuFeaturesTargets
@@ -195,3 +197,4 @@ install(
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/CpuFeatures"
   COMPONENT Devel
 )
+endif()
