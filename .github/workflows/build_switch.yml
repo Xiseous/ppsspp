@@ -26,6 +26,11 @@ jobs:
     steps:
     - name: Clone PPSSPP from official repository
       run: |
+        # Fix dubious ownership issue in containers
+        git config --global --add safe.directory /__w/ppsspp/ppsspp
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config --global --add safe.directory "*"
+        
         git clone --recursive https://github.com/hrydgard/ppsspp.git .
         git checkout ${{ env.PPSSPP_VERSION }}
         git submodule update --init --recursive
