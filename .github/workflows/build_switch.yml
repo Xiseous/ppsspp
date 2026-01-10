@@ -41,11 +41,14 @@ jobs:
         sed -i 's/#undef KeyInputFlags::UP/\/\/ #undef KeyInputFlags::UP/' Common/CommonTypes.h
         sed -i 's/#undef KeyInputFlags::DOWN/\/\/ #undef KeyInputFlags::DOWN/' Common/CommonTypes.h
         
-        # Add #undef BIT after switch.h include (libnx's BIT macro conflicts with PPSSPP's BIT function)
-        sed -i 's/#undef ThreadContext/#undef ThreadContext\n#undef BIT/' Common/CommonTypes.h
+        # Add #undef BIT and BreakReason after switch.h include (libnx conflicts with PPSSPP)
+        sed -i 's/#undef ThreadContext/#undef ThreadContext\n#undef BIT\n#undef BreakReason/' Common/CommonTypes.h
         
         # Rename BreakReason to CoreBreakReason (libnx has a typedef with same name - can't use #undef)
         find Core -name "*.cpp" -o -name "*.h" | xargs sed -i 's/BreakReason/CoreBreakReason/g'
+        
+        # Fix sys/mman.h missing on Switch in SocketCompat.h
+        sed -i 's/#include <sys\/mman.h>/#if !PPSSPP_PLATFORM(SWITCH)\n#include <sys\/mman.h>\n#endif/' Common/Net/SocketCompat.h
         
         # Disable armips for Switch (filesystem library not compatible)
         sed -i 's/add_subdirectory(armips)/if(NOT USE_LIBNX)\n\tadd_subdirectory(armips)\nendif()/' ext/CMakeLists.txt
