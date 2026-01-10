@@ -14,19 +14,19 @@
 
 // Official git repository and contact information can be found at
 // https://github.com/hrydgard/ppsspp and http://www.ppsspp.org/.
+
 #pragma once
 
 #include "ppsspp_config.h"
 #include "Core/HLE/sceUsbCam.h"
+#include "Log.h"
 
 #include "ext/jpge/jpgd.h"
 #include "ext/jpge/jpge.h"
 
 extern "C" {
-#ifdef USE_FFMPEG
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
-#endif //USE_FFMPEG
 }
 
 void __cameraDummyImage(int width, int height, unsigned char** outData, int* outLen);
@@ -50,11 +50,6 @@ void __cameraDummyImage(int width, int height, unsigned char** outData, int* out
 	std::vector<std::string> __qt_getDeviceList();
 	int __qt_startCapture(int width, int height);
 	int __qt_stopCapture();
-
-#elif PPSSPP_PLATFORM(MAC)
-std::vector<std::string> __mac_getDeviceList();
-int __mac_startCapture(int width, int height);
-int __mac_stopCapture();
 
 #elif PPSSPP_PLATFORM(LINUX) && !PPSSPP_PLATFORM(ANDROID)
 #include <fcntl.h>

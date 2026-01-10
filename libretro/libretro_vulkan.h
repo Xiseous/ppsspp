@@ -29,7 +29,6 @@
 
 #include "ext/vulkan/vulkan.h"
 #include "libretro.h"
-#include "LibretroGraphicsContext.h"
 
 #define RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION 5
 #define RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN_VERSION 1

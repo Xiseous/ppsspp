@@ -18,6 +18,7 @@
 #pragma once
 
 #include "ppsspp_config.h"
+#include "Common.h"
 
 // x86/x64 ABI:s, and helpers to help follow them when JIT-ing code.
 // All convensions return values in EAX (+ possibly EDX).

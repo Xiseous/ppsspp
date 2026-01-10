@@ -17,31 +17,55 @@
 
 #pragma once
 
-#include "ppsspp_config.h"
-
-#include "Common/CommonTypes.h"
-#include "Common/Swap.h"
-#include "Core/MemMap.h"
-#include "GPU/ge_constants.h"
-#include "GPU/GPUState.h"
-
 enum CheckAlphaResult {
 	// These are intended to line up with TexCacheEntry::STATUS_ALPHA_UNKNOWN, etc.
 	CHECKALPHA_FULL = 0,
 	CHECKALPHA_ANY = 4,
 };
 
-// For both of these, pitch must be aligned to 16 bits (as is the case on a PSP).
+#include "ppsspp_config.h"
+#include "Common/Common.h"
+#include "Common/Swap.h"
+#include "Core/MemMap.h"
+#include "Core/ConfigValues.h"
+#include "GPU/ge_constants.h"
+#include "GPU/Common/TextureDecoderNEON.h"
+#include "GPU/GPUState.h"
+
+void SetupTextureDecoder();
+
+// Pitch must be aligned to 16 bits (as is the case on a PSP)
 void DoSwizzleTex16(const u32 *ysrcp, u8 *texptr, int bxc, int byc, u32 pitch);
-void DoUnswizzleTex16(const u8 *texptr, u32 *ydestp, int bxc, int byc, u32 pitch);
 
-u32 StableQuickTexHash(const void *checkp, u32 size);
+// For SSE, we statically link the SSE2 algorithms.
+#if defined(_M_SSE)
+u32 QuickTexHashSSE2(const void *checkp, u32 size);
+#define DoQuickTexHash QuickTexHashSSE2
+#define StableQuickTexHash QuickTexHashSSE2
 
-// outMask is an in/out parameter.
-void CopyAndSumMask16(u16 *dst, const u16 *src, int width, u32 *outMask);
-void CopyAndSumMask32(u32 *dst, const u32 *src, int width, u32 *outMask);
-void CheckMask16(const u16 *src, int width, u32 *outMask);
-void CheckMask32(const u32 *src, int width, u32 *outMask);
+// Pitch must be aligned to 16 bytes (as is the case on a PSP)
+void DoUnswizzleTex16Basic(const u8 *texptr, u32 *ydestp, int bxc, int byc, u32 pitch);
+#define DoUnswizzleTex16 DoUnswizzleTex16Basic
+
+// For ARM64, NEON is mandatory, so we also statically link.
+#elif PPSSPP_ARCH(ARM64)
+#define DoQuickTexHash QuickTexHashNEON
+#define StableQuickTexHash QuickTexHashNEON
+#define DoUnswizzleTex16 DoUnswizzleTex16NEON
+#else
+typedef u32 (*QuickTexHashFunc)(const void *checkp, u32 size);
+extern QuickTexHashFunc DoQuickTexHash;
+extern QuickTexHashFunc StableQuickTexHash;
+
+typedef void (*UnswizzleTex16Func)(const u8 *texptr, u32 *ydestp, int bxc, int byc, u32 pitch);
+extern UnswizzleTex16Func DoUnswizzleTex16;
+#endif
+
+CheckAlphaResult CheckAlphaRGBA8888Basic(const u32 *pixelData, int stride, int w, int h);
+CheckAlphaResult CheckAlphaABGR4444Basic(const u32 *pixelData, int stride, int w, int h);
+CheckAlphaResult CheckAlphaRGBA4444Basic(const u32 *pixelData, int stride, int w, int h);
+CheckAlphaResult CheckAlphaABGR1555Basic(const u32 *pixelData, int stride, int w, int h);
+CheckAlphaResult CheckAlphaRGBA5551Basic(const u32 *pixelData, int stride, int w, int h);
 
 // All these DXT structs are in the reverse order, as compared to PC.
 // On PC, alpha comes before color, and interpolants are before the tile data.
@@ -64,140 +88,89 @@ struct DXT5Block {
 	u8 alpha1; u8 alpha2;
 };
 
-void DecodeDXT1Block(u32 *dst, const DXT1Block *src, int pitch, int width, int height, u32 *alpha);
-void DecodeDXT3Block(u32 *dst, const DXT3Block *src, int pitch, int width, int height);
-void DecodeDXT5Block(u32 *dst, const DXT5Block *src, int pitch, int width, int height);
+void DecodeDXT1Block(u32 *dst, const DXT1Block *src, int pitch, int height, bool ignore1bitAlpha);
+void DecodeDXT3Block(u32 *dst, const DXT3Block *src, int pitch, int height);
+void DecodeDXT5Block(u32 *dst, const DXT5Block *src, int pitch, int height);
 
 uint32_t GetDXT1Texel(const DXT1Block *src, int x, int y);
 uint32_t GetDXT3Texel(const DXT3Block *src, int x, int y);
 uint32_t GetDXT5Texel(const DXT5Block *src, int x, int y);
 
-extern const u8 textureBitsPerPixel[16];
+static const u8 textureBitsPerPixel[16] = {
+	16,  //GE_TFMT_5650,
+	16,  //GE_TFMT_5551,
+	16,  //GE_TFMT_4444,
+	32,  //GE_TFMT_8888,
+	4,   //GE_TFMT_CLUT4,
+	8,   //GE_TFMT_CLUT8,
+	16,  //GE_TFMT_CLUT16,
+	32,  //GE_TFMT_CLUT32,
+	4,   //GE_TFMT_DXT1,
+	8,   //GE_TFMT_DXT3,
+	8,   //GE_TFMT_DXT5,
+	0,   // INVALID,
+	0,   // INVALID,
+	0,   // INVALID,
+	0,   // INVALID,
+	0,   // INVALID,
+};
 
 u32 GetTextureBufw(int level, u32 texaddr, GETextureFormat format);
 
-// WARNING: Bits not bytes, this is needed due to the presence of 4 - bit formats.
-inline u32 TextureFormatBitsPerPixel(GETextureFormat format) {
-	u32 bits = textureBitsPerPixel[(int)format];
-	return bits != 0 ? bits : 1;  // Best to return 1 here to survive divisions in case of invalid data.
-}
-
-inline bool AlphaSumIsFull(u32 alphaSum, u32 fullAlphaMask) {
-	return fullAlphaMask != 0 && (alphaSum & fullAlphaMask) == fullAlphaMask;
-}
-
-inline CheckAlphaResult CheckAlpha16(const u16 *pixelData, int width, u32 fullAlphaMask) {
-	u32 alphaSum = 0xFFFFFFFF;
-	CheckMask16(pixelData, width, &alphaSum);
-	return AlphaSumIsFull(alphaSum, fullAlphaMask) ? CHECKALPHA_FULL : CHECKALPHA_ANY;
-}
-
-inline CheckAlphaResult CheckAlpha32(const u32 *pixelData, int width, u32 fullAlphaMask) {
-	u32 alphaSum = 0xFFFFFFFF;
-	CheckMask32(pixelData, width, &alphaSum);
-	return AlphaSumIsFull(alphaSum, fullAlphaMask) ? CHECKALPHA_FULL : CHECKALPHA_ANY;
-}
-
-inline CheckAlphaResult CheckAlpha32Rect(const u32 *pixelData, int stride, int width, int height, u32 fullAlphaMask) {
-	u32 alphaSum = 0xFFFFFFFF;
-	for (int y = 0; y < height; y++) {
-		CheckMask32(pixelData + stride * y, width, &alphaSum);
-	}
-	return AlphaSumIsFull(alphaSum, fullAlphaMask) ? CHECKALPHA_FULL : CHECKALPHA_ANY;
-}
-
 template <typename IndexT, typename ClutT>
-inline void DeIndexTexture(/*WRITEONLY*/ ClutT *dest, const IndexT *indexed, int length, const ClutT *clut, u32 *outAlphaSum) {
+inline void DeIndexTexture(ClutT *dest, const IndexT *indexed, int length, const ClutT *clut) {
 	// Usually, there is no special offset, mask, or shift.
 	const bool nakedIndex = gstate.isClutIndexSimple();
-
-	ClutT alphaSum = (ClutT)(-1);
 
 	if (nakedIndex) {
 		if (sizeof(IndexT) == 1) {
 			for (int i = 0; i < length; ++i) {
-				ClutT color = clut[*indexed++];
-				alphaSum &= color;
-				*dest++ = color;
+				*dest++ = clut[*indexed++];
 			}
 		} else {
 			for (int i = 0; i < length; ++i) {
-				ClutT color = clut[(*indexed++) & 0xFF];
-				alphaSum &= color;
-				*dest++ = color;
+				*dest++ = clut[(*indexed++) & 0xFF];
 			}
 		}
 	} else {
 		for (int i = 0; i < length; ++i) {
-			ClutT color = clut[gstate.transformClutIndex(*indexed++)];
-			alphaSum &= color;
-			*dest++ = color;
+			*dest++ = clut[gstate.transformClutIndex(*indexed++)];
 		}
 	}
-
-	*outAlphaSum &= (u32)alphaSum;
 }
 
 template <typename IndexT, typename ClutT>
-inline void DeIndexTexture(/*WRITEONLY*/ ClutT *dest, const u32 texaddr, int length, const ClutT *clut, u32 *outAlphaSum) {
+inline void DeIndexTexture(ClutT *dest, const u32 texaddr, int length, const ClutT *clut) {
 	const IndexT *indexed = (const IndexT *) Memory::GetPointer(texaddr);
-	DeIndexTexture(dest, indexed, length, clut, outAlphaSum);
+	DeIndexTexture(dest, indexed, length, clut);
 }
 
 template <typename ClutT>
-inline void DeIndexTexture4(/*WRITEONLY*/ ClutT *dest, const u8 *indexed, int length, const ClutT *clut, u32 *outAlphaSum) {
+inline void DeIndexTexture4(ClutT *dest, const u8 *indexed, int length, const ClutT *clut) {
 	// Usually, there is no special offset, mask, or shift.
 	const bool nakedIndex = gstate.isClutIndexSimple();
 
-	ClutT alphaSum = (ClutT)(-1);
 	if (nakedIndex) {
-		while (length >= 2) {
+		for (int i = 0; i < length; i += 2) {
 			u8 index = *indexed++;
-			ClutT color0 = clut[index & 0xf];
-			ClutT color1 = clut[index >> 4];
-			*dest++ = color0;
-			*dest++ = color1;
-			alphaSum &= color0 & color1;
-			length -= 2;
-		}
-		if (length) {  // Last pixel. Can really only happen in 1xY textures, but making this work generically.
-			u8 index = *indexed++;
-			ClutT color0 = clut[index & 0xf];
-			*dest = color0;
-			alphaSum &= color0;
+			dest[i + 0] = clut[(index >> 0) & 0xf];
+			dest[i + 1] = clut[(index >> 4) & 0xf];
 		}
 	} else {
-		while (length >= 2) {
+		for (int i = 0; i < length; i += 2) {
 			u8 index = *indexed++;
-			ClutT color0 = clut[gstate.transformClutIndex((index >> 0) & 0xf)];
-			ClutT color1 = clut[gstate.transformClutIndex((index >> 4) & 0xf)];
-			*dest++ = color0;
-			*dest++ = color1;
-			alphaSum &= color0 & color1;
-			length -= 2;
-		}
-		if (length) {
-			u8 index = *indexed++;
-			ClutT color0 = clut[gstate.transformClutIndex((index >> 0) & 0xf)];
-			*dest = color0;
-			alphaSum &= color0;
+			dest[i + 0] = clut[gstate.transformClutIndex((index >> 0) & 0xf)];
+			dest[i + 1] = clut[gstate.transformClutIndex((index >> 4) & 0xf)];
 		}
 	}
-
-	*outAlphaSum &= (u32)alphaSum;
 }
 
 template <typename ClutT>
 inline void DeIndexTexture4Optimal(ClutT *dest, const u8 *indexed, int length, ClutT color) {
-	while (length >= 2) {
+	for (int i = 0; i < length; i += 2) {
 		u8 index = *indexed++;
-		*dest++ = color | ((index >> 0) & 0xf);
-		*dest++ = color | ((index >> 4) & 0xf);
-		length -= 2;
-	}
-	if (length) {
-		u8 index = *indexed++;
-		*dest++ = color | ((index >> 0) & 0xf);
+		dest[i + 0] = color | ((index >> 0) & 0xf);
+		dest[i + 1] = color | ((index >> 4) & 0xf);
 	}
 }
 

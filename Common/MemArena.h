@@ -25,7 +25,7 @@
 #include <mach/mach.h>
 #endif
 
-#include "Common/CommonTypes.h"
+#include "Common.h"
 
 // This class lets you create a block of anonymous RAM, and then arbitrarily map views into it.
 // Multiple views can mirror the same section of the block, which makes it very convient for emulating
@@ -39,7 +39,7 @@ public:
 	bool GrabMemSpace(size_t size);
 	void ReleaseSpace();
 	void *CreateView(s64 offset, size_t size, void *base = 0);
-	void ReleaseView(s64 offset, void *view, size_t size);
+	void ReleaseView(void *view, size_t size);
 
 	// This only finds 1 GB in 32-bit
 	u8 *Find4GBBase();

@@ -107,7 +107,7 @@ namespace MIPSComp
 			js.prefixDFlag = JitState::PREFIX_KNOWN_DIRTY;
 			break;
 		default:
-			ERROR_LOG(Log::CPU, "VPFX - bad regnum %i : data=%08x", regnum, data);
+			ERROR_LOG(CPU, "VPFX - bad regnum %i : data=%08x", regnum, data);
 			break;
 		}
 	}
@@ -142,7 +142,7 @@ namespace MIPSComp
 				// Prefix may say "z, z, z, z" but if this is a pair, we force to x.
 				// TODO: But some ops seem to use const 0 instead?
 				if (regnum >= n) {
-					WARN_LOG(Log::CPU, "JIT: Invalid VFPU swizzle: %08x : %d / %d at PC = %08x (%s)", prefix, regnum, n, GetCompilerPC(), MIPSDisasmAt(GetCompilerPC()).c_str());
+					WARN_LOG(CPU, "JIT: Invalid VFPU swizzle: %08x : %d / %d at PC = %08x (%s)", prefix, regnum, n, GetCompilerPC(), MIPSDisasmAt(GetCompilerPC()));
 					regnum = 0;
 				}
 				
@@ -1060,7 +1060,7 @@ namespace MIPSComp
 				VDIV(fpr.V(tempregs[i]), S0, fpr.V(sregs[i]));
 				break;
 			default:
-				ERROR_LOG(Log::JIT, "case missing in vfpu vv2op");
+				ERROR_LOG(JIT, "case missing in vfpu vv2op");
 				DISABLE;
 				break;
 			}
@@ -1129,6 +1129,10 @@ namespace MIPSComp
 		NEON_IF_AVAILABLE(CompNEON_Vh2f);
 		CONDITIONAL_DISABLE(VFPU_VEC);
 		if (js.HasUnknownPrefix()) {
+			DISABLE;
+		}
+
+		if (!cpu_info.bNEON) {
 			DISABLE;
 		}
 
@@ -1283,7 +1287,7 @@ namespace MIPSComp
 					}
 				} else {
 					//ERROR - maybe need to make this value too an "interlock" value?
-					ERROR_LOG(Log::CPU, "mfv - invalid register %i", imm);
+					ERROR_LOG(CPU, "mfv - invalid register %i", imm);
 				}
 			}
 			break;
@@ -1310,13 +1314,10 @@ namespace MIPSComp
 				// Set these BEFORE disable!
 				if (imm - 128 == VFPU_CTRL_SPREFIX) {
 					js.prefixSFlag = JitState::PREFIX_UNKNOWN;
-					js.blockWrotePrefixes = true;
 				} else if (imm - 128 == VFPU_CTRL_TPREFIX) {
 					js.prefixTFlag = JitState::PREFIX_UNKNOWN;
-					js.blockWrotePrefixes = true;
 				} else if (imm - 128 == VFPU_CTRL_DPREFIX) {
 					js.prefixDFlag = JitState::PREFIX_UNKNOWN;
-					js.blockWrotePrefixes = true;
 				}
 			} else {
 				//ERROR
@@ -1372,13 +1373,10 @@ namespace MIPSComp
 
 			if (imm == VFPU_CTRL_SPREFIX) {
 				js.prefixSFlag = JitState::PREFIX_UNKNOWN;
-				js.blockWrotePrefixes = true;
 			} else if (imm == VFPU_CTRL_TPREFIX) {
 				js.prefixTFlag = JitState::PREFIX_UNKNOWN;
-				js.blockWrotePrefixes = true;
 			} else if (imm == VFPU_CTRL_DPREFIX) {
 				js.prefixDFlag = JitState::PREFIX_UNKNOWN;
-				js.blockWrotePrefixes = true;
 			}
 		}
 	}
@@ -1598,6 +1596,10 @@ namespace MIPSComp
 		NEON_IF_AVAILABLE(CompNEON_Vi2x);
 		CONDITIONAL_DISABLE(VFPU_VEC);
 		if (js.HasUnknownPrefix()) {
+			DISABLE;
+		}
+
+		if (!cpu_info.bNEON) {
 			DISABLE;
 		}
 
@@ -2174,7 +2176,7 @@ namespace MIPSComp
 					break;
 				}
 			default:
-				ERROR_LOG(Log::JIT, "Bad what in vrot");
+				ERROR_LOG(JIT, "Bad what in vrot");
 				break;
 			}
 		}
@@ -2211,7 +2213,7 @@ namespace MIPSComp
 			// Pair of vrot. Let's join them.
 			vd2 = MIPS_GET_VD(nextOp);
 			imm2 = (nextOp >> 16) & 0x1f;
-			// NOTICE_LOG(Log::JIT, "Joint VFPU at %08x", js.blockStart);
+			// NOTICE_LOG(JIT, "Joint VFPU at %08x", js.blockStart);
 		}
 		u8 sreg;
 		GetVectorRegs(dregs, sz, vd);

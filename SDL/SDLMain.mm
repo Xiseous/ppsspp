@@ -5,15 +5,9 @@
     Feel free to customize this file to suit your needs
 */
 
-#include "ppsspp_config.h"
-#if PPSSPP_PLATFORM(MAC)
-#include "SDL2/SDL.h"
-#else
 #include "SDL.h"
-#endif
 #include "SDLMain.h"
 #include "Common/Profiler/Profiler.h"
-#include <signal.h>
 #include <sys/param.h> /* for MAXPATHLEN */
 #include <unistd.h>
 
@@ -351,6 +345,8 @@ static void CustomApplicationMain (int argc, char **argv)
 
 @end
 
+
+
 #ifdef main
 #  undef main
 #endif
@@ -377,11 +373,6 @@ int main (int argc, char **argv)
     }
 
     PROFILE_INIT();
-
-    // Ignore sigpipe.
-    if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-        perror("Unable to ignore SIGPIPE");
-    }
 
 #if SDL_USE_NIB_FILE
     NSApplicationMain (argc, argv);

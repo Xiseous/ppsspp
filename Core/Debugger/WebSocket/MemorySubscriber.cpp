@@ -17,17 +17,15 @@
 
 #include <algorithm>
 #include <cstring>
-#include <mutex>
 #include "Common/Data/Encoding/Base64.h"
 #include "Common/StringUtils.h"
 #include "Core/Core.h"
-#include "Core/Debugger/WebSocket/MemorySubscriber.h"
-#include "Core/Debugger/WebSocket/WebSocketUtils.h"
 #include "Core/HLE/ReplaceTables.h"
 #include "Core/MemMap.h"
 #include "Core/MIPS/MIPSDebugInterface.h"
-#include "Core/Reporting.h"
 #include "Core/System.h"
+#include "Core/Debugger/WebSocket/MemorySubscriber.h"
+#include "Core/Debugger/WebSocket/WebSocketUtils.h"
 
 DebuggerSubscriber *WebSocketMemoryInit(DebuggerEventHandlerMap &map) {
 	// No need to bind or alloc state, these are all global.
@@ -45,10 +43,6 @@ DebuggerSubscriber *WebSocketMemoryInit(DebuggerEventHandlerMap &map) {
 }
 
 struct AutoDisabledReplacements {
-	AutoDisabledReplacements() {}
-	AutoDisabledReplacements(AutoDisabledReplacements &&other);
-	AutoDisabledReplacements(const AutoDisabledReplacements &) = delete;
-	AutoDisabledReplacements &operator =(const AutoDisabledReplacements &) = delete;
 	~AutoDisabledReplacements();
 
 	Memory::MemoryInitedLock *lock = nullptr;
@@ -59,16 +53,12 @@ struct AutoDisabledReplacements {
 };
 
 // Important: Only use keepReplacements when reading, not writing.
-static AutoDisabledReplacements LockMemoryAndCPU(uint32_t addr, bool keepReplacements) {
+static AutoDisabledReplacements LockMemoryAndCPU(bool keepReplacements) {
 	AutoDisabledReplacements result;
-	CoreState state = coreState;
 	if (Core_IsStepping()) {
 		result.wasStepping = true;
 	} else {
-		while (state != CoreState::CORE_RUNNING_CPU) {
-			state = coreState;
-		}
-		Core_Break(BreakReason::MemoryAccess, addr);
+		Core_EnableStepping(true);
 		Core_WaitInactive();
 	}
 
@@ -77,33 +67,20 @@ static AutoDisabledReplacements LockMemoryAndCPU(uint32_t addr, bool keepReplace
 		result.saved = true;
 		// Okay, save so we can restore later.
 		result.replacements = SaveAndClearReplacements();
-		std::lock_guard<std::recursive_mutex> guard(MIPSComp::jitLock);
 		if (MIPSComp::jit)
 			result.emuhacks = MIPSComp::jit->SaveAndClearEmuHackOps();
 	}
 	return result;
 }
 
-AutoDisabledReplacements::AutoDisabledReplacements(AutoDisabledReplacements &&other) {
-	lock = other.lock;
-	other.lock = nullptr;
-	replacements = std::move(other.replacements);
-	emuhacks = std::move(other.emuhacks);
-	saved = other.saved;
-	other.saved = false;
-	wasStepping = other.wasStepping;
-	other.wasStepping = true;
-}
-
 AutoDisabledReplacements::~AutoDisabledReplacements() {
 	if (saved) {
-		std::lock_guard<std::recursive_mutex> guard(MIPSComp::jitLock);
 		if (MIPSComp::jit)
 			MIPSComp::jit->RestoreSavedEmuHackOps(emuhacks);
 		RestoreSavedReplacements(replacements);
 	}
 	if (!wasStepping)
-		Core_Resume();
+		Core_EnableStepping(false);
 	delete lock;
 }
 
@@ -115,14 +92,14 @@ AutoDisabledReplacements::~AutoDisabledReplacements() {
 // Response (same event name):
 //  - value: unsigned integer
 void WebSocketMemoryReadU8(DebuggerRequest &req) {
+	auto memLock = LockMemoryAndCPU(true);
+	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
+		return req.Fail("CPU not started");
+
 	uint32_t addr;
 	if (!req.ParamU32("address", &addr, false)) {
 		return;
 	}
-
-	auto memLock = LockMemoryAndCPU(addr, true);
-	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
-		return req.Fail("CPU not started");
 
 	if (!Memory::IsValidAddress(addr)) {
 		req.Fail("Invalid address");
@@ -141,14 +118,14 @@ void WebSocketMemoryReadU8(DebuggerRequest &req) {
 // Response (same event name):
 //  - value: unsigned integer
 void WebSocketMemoryReadU16(DebuggerRequest &req) {
+	auto memLock = LockMemoryAndCPU(true);
+	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
+		return req.Fail("CPU not started");
+
 	uint32_t addr;
 	if (!req.ParamU32("address", &addr, false)) {
 		return;
 	}
-
-	auto memLock = LockMemoryAndCPU(addr, true);
-	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
-		return req.Fail("CPU not started");
 
 	if (!Memory::IsValidAddress(addr)) {
 		req.Fail("Invalid address");
@@ -167,14 +144,14 @@ void WebSocketMemoryReadU16(DebuggerRequest &req) {
 // Response (same event name):
 //  - value: unsigned integer
 void WebSocketMemoryReadU32(DebuggerRequest &req) {
+	auto memLock = LockMemoryAndCPU(true);
+	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
+		return req.Fail("CPU not started");
+
 	uint32_t addr;
 	if (!req.ParamU32("address", &addr, false)) {
 		return;
 	}
-
-	auto memLock = LockMemoryAndCPU(addr, true);
-	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
-		return req.Fail("CPU not started");
 
 	if (!Memory::IsValidAddress(addr)) {
 		req.Fail("Invalid address");
@@ -205,7 +182,7 @@ void WebSocketMemoryRead(DebuggerRequest &req) {
 	if (!req.ParamBool("replacements", &replacements, DebuggerParamType::OPTIONAL))
 		return;
 
-	auto memLock = LockMemoryAndCPU(addr, replacements);
+	auto memLock = LockMemoryAndCPU(replacements);
 	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
 		return req.Fail("CPU not started");
 
@@ -242,14 +219,13 @@ void WebSocketMemoryRead(DebuggerRequest &req) {
 // Response (same event name) for 'base64':
 //  - base64: base64 encode of binary data, not including NUL.
 void WebSocketMemoryReadString(DebuggerRequest &req) {
-	uint32_t addr;
-	if (!req.ParamU32("address", &addr))
-		return;
-
-	auto memLock = LockMemoryAndCPU(addr, true);
+	auto memLock = LockMemoryAndCPU(true);
 	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
 		return req.Fail("CPU not started");
 
+	uint32_t addr;
+	if (!req.ParamU32("address", &addr))
+		return;
 	std::string type = "utf-8";
 	if (!req.ParamString("type", &type, DebuggerParamType::OPTIONAL))
 		return;
@@ -261,7 +237,7 @@ void WebSocketMemoryReadString(DebuggerRequest &req) {
 
 	// Let's try to avoid crashing and get a safe length.
 	const uint8_t *p = Memory::GetPointerUnchecked(addr);
-	size_t longest = Memory::ClampValidSizeAt(addr, Memory::g_MemorySize);
+	size_t longest = Memory::ValidSize(addr, Memory::g_MemorySize);
 	size_t len = strnlen((const char *)p, longest);
 
 	JsonWriter &json = req.Respond();
@@ -281,6 +257,10 @@ void WebSocketMemoryReadString(DebuggerRequest &req) {
 // Response (same event name):
 //  - value: new value, unsigned integer
 void WebSocketMemoryWriteU8(DebuggerRequest &req) {
+	auto memLock = LockMemoryAndCPU(true);
+	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
+		return req.Fail("CPU not started");
+
 	uint32_t addr, val;
 	if (!req.ParamU32("address", &addr, false)) {
 		return;
@@ -289,17 +269,12 @@ void WebSocketMemoryWriteU8(DebuggerRequest &req) {
 		return;
 	}
 
-	auto memLock = LockMemoryAndCPU(addr, true);
-	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
-		return req.Fail("CPU not started");
-
 	if (!Memory::IsValidAddress(addr)) {
 		req.Fail("Invalid address");
 		return;
 	}
 	currentMIPS->InvalidateICache(addr, 1);
 	Memory::Write_U8(val, addr);
-	Reporting::NotifyDebugger();
 
 	JsonWriter &json = req.Respond();
 	json.writeUint("value", Memory::Read_U8(addr));
@@ -314,6 +289,10 @@ void WebSocketMemoryWriteU8(DebuggerRequest &req) {
 // Response (same event name):
 //  - value: new value, unsigned integer
 void WebSocketMemoryWriteU16(DebuggerRequest &req) {
+	auto memLock = LockMemoryAndCPU(true);
+	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
+		return req.Fail("CPU not started");
+
 	uint32_t addr, val;
 	if (!req.ParamU32("address", &addr, false)) {
 		return;
@@ -322,17 +301,12 @@ void WebSocketMemoryWriteU16(DebuggerRequest &req) {
 		return;
 	}
 
-	auto memLock = LockMemoryAndCPU(addr, true);
-	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
-		return req.Fail("CPU not started");
-
 	if (!Memory::IsValidAddress(addr)) {
 		req.Fail("Invalid address");
 		return;
 	}
 	currentMIPS->InvalidateICache(addr, 2);
 	Memory::Write_U16(val, addr);
-	Reporting::NotifyDebugger();
 
 	JsonWriter &json = req.Respond();
 	json.writeUint("value", Memory::Read_U16(addr));
@@ -347,6 +321,10 @@ void WebSocketMemoryWriteU16(DebuggerRequest &req) {
 // Response (same event name):
 //  - value: new value, unsigned integer
 void WebSocketMemoryWriteU32(DebuggerRequest &req) {
+	auto memLock = LockMemoryAndCPU(true);
+	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
+		return req.Fail("CPU not started");
+
 	uint32_t addr, val;
 	if (!req.ParamU32("address", &addr, false)) {
 		return;
@@ -355,17 +333,12 @@ void WebSocketMemoryWriteU32(DebuggerRequest &req) {
 		return;
 	}
 
-	auto memLock = LockMemoryAndCPU(addr, true);
-	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
-		return req.Fail("CPU not started");
-
 	if (!Memory::IsValidAddress(addr)) {
 		req.Fail("Invalid address");
 		return;
 	}
 	currentMIPS->InvalidateICache(addr, 4);
 	Memory::Write_U32(val, addr);
-	Reporting::NotifyDebugger();
 
 	JsonWriter &json = req.Respond();
 	json.writeUint("value", Memory::Read_U32(addr));
@@ -379,16 +352,16 @@ void WebSocketMemoryWriteU32(DebuggerRequest &req) {
 //
 // Response (same event name) with no extra data.
 void WebSocketMemoryWrite(DebuggerRequest &req) {
+	auto memLock = LockMemoryAndCPU(true);
+	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
+		return req.Fail("CPU not started");
+
 	uint32_t addr;
 	if (!req.ParamU32("address", &addr))
 		return;
 	std::string encoded;
 	if (!req.ParamString("base64", &encoded))
 		return;
-
-	auto memLock = LockMemoryAndCPU(addr, true);
-	if (!currentDebugMIPS->isAlive() || !Memory::IsActive())
-		return req.Fail("CPU not started");
 
 	std::vector<uint8_t> value = Base64Decode(&encoded[0], encoded.size());
 	uint32_t size = (uint32_t)value.size();
@@ -400,6 +373,5 @@ void WebSocketMemoryWrite(DebuggerRequest &req) {
 
 	currentMIPS->InvalidateICache(addr, size);
 	Memory::MemcpyUnchecked(addr, &value[0], size);
-	Reporting::NotifyDebugger();
 	req.Respond();
 }

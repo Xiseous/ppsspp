@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "Common/CommonTypes.h"
+#include "Common.h"
 
 struct LSInstructionInfo
 {

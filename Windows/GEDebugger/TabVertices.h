@@ -35,11 +35,16 @@ public:
 	}
 
 protected:
-	bool WindowMessage(UINT msg, WPARAM wParam, LPARAM lParam, LRESULT &returnValue) override { return false; }
-	void GetColumnText(wchar_t *dest, size_t destSize, int row, int col) override;
-	int GetRowCount() override;
+	virtual bool WindowMessage(UINT msg, WPARAM wParam, LPARAM lParam, LRESULT& returnValue) { return false; };
+	virtual void GetColumnText(wchar_t *dest, int row, int col);
+	virtual int GetRowCount();
 
 private:
+	void FormatVertCol(wchar_t *dest, const GPUDebugVertex &vert, int col);
+	void FormatVertColRaw(wchar_t *dest, int row, int col);
+	void FormatVertColRawType(wchar_t *dest, const void *data, int type, int offset);
+	void FormatVertColRawColor(wchar_t *dest, const void *data, int type);
+
 	std::vector<GPUDebugVertex> vertices;
 	std::vector<u16> indices;
 	int rowCount_;
@@ -52,12 +57,12 @@ public:
 	TabVertices(HINSTANCE _hInstance, HWND _hParent);
 	~TabVertices();
 
-	void Update() override {
+	virtual void Update() {
 		values->Update();
 	}
 
 protected:
-	BOOL DlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	BOOL DlgProc(UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
 	void UpdateSize(WORD width, WORD height);
@@ -70,22 +75,9 @@ public:
 	CtrlMatrixList(HWND hwnd);
 
 protected:
-	bool WindowMessage(UINT msg, WPARAM wParam, LPARAM lParam, LRESULT &returnValue) override {
-		return false;
-	}
-	void GetColumnText(wchar_t *dest, size_t destSize, int row, int col) override;
-	int GetRowCount() override;
-	void OnDoubleClick(int row, int column) override;
-	void OnRightClick(int row, int column, const POINT &point) override;
-
-	bool ListenColPrePaint() override { return true; }
-	bool OnColPrePaint(int row, int col, LPNMLVCUSTOMDRAW msg) override;
-
-private:
-	bool GetValue(const GPUgstate &state, int row, int col, float &val);
-	bool ColChanged(const GPUgstate &lastState, const GPUgstate &state, int row, int col);
-	void ToggleBreakpoint(int row);
-	void PromptBreakpointCond(int row);
+	virtual bool WindowMessage(UINT msg, WPARAM wParam, LPARAM lParam, LRESULT& returnValue) { return false; };
+	virtual void GetColumnText(wchar_t *dest, int row, int col);
+	virtual int GetRowCount();
 };
 
 class TabMatrices : public Dialog {
@@ -93,12 +85,12 @@ public:
 	TabMatrices(HINSTANCE _hInstance, HWND _hParent);
 	~TabMatrices();
 
-	void Update() override {
+	virtual void Update() {
 		values->Update();
 	}
 
 protected:
-	BOOL DlgProc(UINT message, WPARAM wParam, LPARAM lParam) override;
+	BOOL DlgProc(UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
 	void UpdateSize(WORD width, WORD height);

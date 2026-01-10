@@ -19,9 +19,7 @@
 #include <condition_variable>
 
 #include "Common/Log.h"
-#include "Common/Thread/ThreadUtil.h"
 #include "Core/Core.h"
-#include "Core/HW/Display.h"
 #include "GPU/Common/GPUDebugInterface.h"
 #include "GPU/Debugger/Stepping.h"
 #include "GPU/GPUState.h"
@@ -38,7 +36,6 @@ enum PauseAction {
 	PAUSE_GETTEX,
 	PAUSE_GETCLUT,
 	PAUSE_SETCMDVALUE,
-	PAUSE_FLUSHDRAW,
 };
 
 static bool isStepping;
@@ -46,6 +43,7 @@ static bool isStepping;
 static int stepCounter = 0;
 
 static std::mutex pauseLock;
+static std::condition_variable pauseWait;
 static PauseAction pauseAction = PAUSE_CONTINUE;
 static std::mutex actionLock;
 static std::condition_variable actionWait;
@@ -64,27 +62,7 @@ static GPUDebugBuffer bufferStencil;
 static GPUDebugBuffer bufferTex;
 static GPUDebugBuffer bufferClut;
 static int bufferLevel;
-static bool lastWasFramebuffer;
 static u32 pauseSetCmdValue;
-
-// This is used only to highlight differences. Should really be owned by the debugger.
-static GPUgstate lastGState;
-
-const char *PauseActionToString(PauseAction action) {
-	switch (action) {
-	case PAUSE_CONTINUE: return "CONTINUE";
-	case PAUSE_BREAK: return "BREAK";
-	case PAUSE_GETOUTPUTBUF: return "GETOUTPUTBUF";
-	case PAUSE_GETFRAMEBUF: return "GETFRAMEBUF";
-	case PAUSE_GETDEPTHBUF: return "GETDEPTHBUF";
-	case PAUSE_GETSTENCILBUF: return "GETSTENCILBUF";
-	case PAUSE_GETTEX: return "GETTEX";
-	case PAUSE_GETCLUT: return "GETCLUT";
-	case PAUSE_SETCMDVALUE: return "SETCMDVALUE";
-	case PAUSE_FLUSHDRAW: return "FLUSHDRAW";
-	default: return "N/A";
-	}
-}
 
 static void SetPauseAction(PauseAction act, bool waitComplete = true) {
 	pauseLock.lock();
@@ -92,21 +70,24 @@ static void SetPauseAction(PauseAction act, bool waitComplete = true) {
 	pauseAction = act;
 	pauseLock.unlock();
 
-	// if (coreState == CORE_STEPPING && act != PAUSE_CONTINUE)
-	// 	Core_UpdateSingleStep();
+	if (coreState == CORE_STEPPING && act != PAUSE_CONTINUE)
+		Core_UpdateSingleStep();
+
 	actionComplete = false;
+	pauseWait.notify_all();
+	while (waitComplete && !actionComplete) {
+		actionWait.wait(guard);
+	}
 }
 
 static void RunPauseAction() {
 	std::lock_guard<std::mutex> guard(actionLock);
-	if (pauseAction == PAUSE_BREAK) {
-		// Don't notify, just go back, woke up by accident.
-		return;
-	}
-
-	DEBUG_LOG(Log::GeDebugger, "RunPauseAction: %s", PauseActionToString(pauseAction));
 
 	switch (pauseAction) {
+	case PAUSE_CONTINUE:
+		// Don't notify, just go back, woke up by accident.
+		return;
+
 	case PAUSE_BREAK:
 		break;
 
@@ -127,7 +108,7 @@ static void RunPauseAction() {
 		break;
 
 	case PAUSE_GETTEX:
-		bufferResult = gpuDebug->GetCurrentTexture(bufferTex, bufferLevel, &lastWasFramebuffer);
+		bufferResult = gpuDebug->GetCurrentTexture(bufferTex, bufferLevel);
 		break;
 
 	case PAUSE_GETCLUT:
@@ -138,88 +119,70 @@ static void RunPauseAction() {
 		gpuDebug->SetCmdValue(pauseSetCmdValue);
 		break;
 
-	case PAUSE_FLUSHDRAW:
-		gpuDebug->Flush();
-		break;
-
 	default:
-		ERROR_LOG(Log::GeDebugger, "Unsupported pause action, forgot to add it to the switch.");
-		break;
+		ERROR_LOG(G3D, "Unsupported pause action, forgot to add it to the switch.");
 	}
 
 	actionComplete = true;
 	actionWait.notify_all();
-
 	pauseAction = PAUSE_BREAK;
 }
 
-void WaitForPauseAction() {
-	std::unique_lock<std::mutex> guard(actionLock);
-	actionWait.wait(guard);
-}
-
-bool ProcessStepping() {
-	_dbg_assert_(gpuDebug);
-
+bool SingleStep() {
 	std::unique_lock<std::mutex> guard(pauseLock);
-	if (coreState != CORE_STEPPING_GE) {
-		// Not stepping any more, don't try.
+	if (coreState != CORE_RUNNING && coreState != CORE_NEXTFRAME && coreState != CORE_STEPPING) {
+		// Shutting down, don't try to step.
+		actionComplete = true;
+		actionWait.notify_all();
+		return false;
+	}
+	if (!gpuDebug || pauseAction == PAUSE_CONTINUE) {
 		actionComplete = true;
 		actionWait.notify_all();
 		return false;
 	}
 
-	if (pauseAction == PAUSE_CONTINUE) {
-		// This is fine, can just mean to run to the next breakpoint/event.
-		DEBUG_LOG(Log::GeDebugger, "Continuing...");
-		actionComplete = true;
-		actionWait.notify_all();
-		coreState = CORE_RUNNING_GE;
-		return false;
-	}
+	gpuDebug->NotifySteppingEnter();
+	isStepping = true;
 
 	RunPauseAction();
+
+	gpuDebug->NotifySteppingExit();
+	isStepping = false;
 	return true;
 }
 
-bool EnterStepping(CoreState coreState) {
-	_dbg_assert_(gpuDebug);
-
+bool EnterStepping() {
 	std::unique_lock<std::mutex> guard(pauseLock);
-	if (coreState == CORE_STEPPING_GE) {
-		// Already there. Should avoid this happening, I think.
-		return true;
+	if (coreState != CORE_RUNNING && coreState != CORE_NEXTFRAME) {
+		// Shutting down, don't try to step.
+		actionComplete = true;
+		actionWait.notify_all();
+		return false;
 	}
-	if (coreState != CORE_RUNNING_CPU && coreState != CORE_RUNNING_GE) {
-		// ?? Shutting down, don't try to step.
+	if (!gpuDebug) {
 		actionComplete = true;
 		actionWait.notify_all();
 		return false;
 	}
 
-	// StartStepping
-	if (lastGState.cmdmem[1] == 0) {
-		lastGState = gstate;
-		// Play it safe so we don't keep resetting.
-		lastGState.cmdmem[1] |= 0x01000000;
-	}
-
-	isStepping = true;
-	stepCounter++;
+	gpuDebug->NotifySteppingEnter();
 
 	// Just to be sure.
 	if (pauseAction == PAUSE_CONTINUE) {
 		pauseAction = PAUSE_BREAK;
 	}
+	isStepping = true;
+	stepCounter++;
 
-	::coreState = CORE_STEPPING_GE;
-	return true;
-}
+	do {
+		RunPauseAction();
+		pauseWait.wait(guard);
+	} while (pauseAction != PAUSE_CONTINUE);
 
-void ResumeFromStepping() {
-	lastGState = gstate;
+	gpuDebug->NotifySteppingExit();
 	isStepping = false;
-	SetPauseAction(PAUSE_CONTINUE, false);
+	return true;
 }
 
 bool IsStepping() {
@@ -230,16 +193,12 @@ int GetSteppingCounter() {
 	return stepCounter;
 }
 
-// NOTE: This can't be called on the EmuThread!
 static bool GetBuffer(const GPUDebugBuffer *&buffer, PauseAction type, const GPUDebugBuffer &resultBuffer) {
-	if (!isStepping && coreState != CORE_STEPPING_CPU) {
+	if (!isStepping && coreState != CORE_STEPPING) {
 		return false;
 	}
 
-	_dbg_assert_(strcmp(GetCurrentThreadName(), "EmuThread") != 0);
-
 	SetPauseAction(type);
-	WaitForPauseAction();
 	buffer = &resultBuffer;
 	return bufferResult;
 }
@@ -261,11 +220,9 @@ bool GPU_GetCurrentStencilbuffer(const GPUDebugBuffer *&buffer) {
 	return GetBuffer(buffer, PAUSE_GETSTENCILBUF, bufferStencil);
 }
 
-bool GPU_GetCurrentTexture(const GPUDebugBuffer *&buffer, int level, bool *isFramebuffer) {
+bool GPU_GetCurrentTexture(const GPUDebugBuffer *&buffer, int level) {
 	bufferLevel = level;
-	bool result = GetBuffer(buffer, PAUSE_GETTEX, bufferTex);
-	*isFramebuffer = lastWasFramebuffer;
-	return result;
+	return GetBuffer(buffer, PAUSE_GETTEX, bufferTex);
 }
 
 bool GPU_GetCurrentClut(const GPUDebugBuffer *&buffer) {
@@ -273,7 +230,7 @@ bool GPU_GetCurrentClut(const GPUDebugBuffer *&buffer) {
 }
 
 bool GPU_SetCmdValue(u32 op) {
-	if (!isStepping && coreState != CORE_STEPPING_CPU) {
+	if (!isStepping && coreState != CORE_STEPPING) {
 		return false;
 	}
 
@@ -282,17 +239,14 @@ bool GPU_SetCmdValue(u32 op) {
 	return true;
 }
 
-bool GPU_FlushDrawing() {
-	if (!isStepping && coreState != CORE_STEPPING_CPU) {
-		return false;
-	}
-
-	SetPauseAction(PAUSE_FLUSHDRAW);
-	return true;
+void ResumeFromStepping() {
+	SetPauseAction(PAUSE_CONTINUE, false);
 }
 
-const GPUgstate &LastState() {
-	return lastGState;
+void ForceUnpause() {
+	SetPauseAction(PAUSE_CONTINUE, false);
+	actionComplete = true;
+	actionWait.notify_all();
 }
 
 }  // namespace

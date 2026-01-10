@@ -18,15 +18,12 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
-#include <cstring>
-
 #include "Common/Common.h"
 
 class PointerWrap;
-
-static constexpr uint32_t MEMINFO_MIN_SIZE = 0x100;
 
 enum class MemBlockFlags {
 	ALLOC = 0x0001,
@@ -54,7 +51,6 @@ struct MemBlockInfo {
 
 void NotifyMemInfo(MemBlockFlags flags, uint32_t start, uint32_t size, const char *tag, size_t tagLength);
 void NotifyMemInfoPC(MemBlockFlags flags, uint32_t start, uint32_t size, uint32_t pc, const char *tag, size_t tagLength);
-void NotifyMemInfoCopy(uint32_t destPtr, uint32_t srcPtr, uint32_t size, const char *prefix);
 
 // This lets us avoid calling strlen on string constants, instead the string length (including null,
 // so we have to subtract 1) is computed at compile time.
@@ -70,7 +66,7 @@ inline void NotifyMemInfo(MemBlockFlags flags, uint32_t start, uint32_t size, co
 std::vector<MemBlockInfo> FindMemInfo(uint32_t start, uint32_t size);
 std::vector<MemBlockInfo> FindMemInfoByFlag(MemBlockFlags flags, uint32_t start, uint32_t size);
 
-size_t FormatMemWriteTagAt(char *buf, size_t sz, const char *prefix, uint32_t start, uint32_t size);
+std::string GetMemWriteTagAt(uint32_t start, uint32_t size);
 
 void MemBlockInfoInit();
 void MemBlockInfoShutdown();
@@ -79,11 +75,3 @@ void MemBlockInfoDoState(PointerWrap &p);
 void MemBlockOverrideDetailed();
 void MemBlockReleaseDetailed();
 bool MemBlockInfoDetailed();
-
-static inline bool MemBlockInfoDetailed(uint32_t size) {
-	return size >= MEMINFO_MIN_SIZE || MemBlockInfoDetailed();
-}
-
-static inline bool MemBlockInfoDetailed(uint32_t size1, uint32_t size2) {
-	return size1 >= MEMINFO_MIN_SIZE || size2 >= MEMINFO_MIN_SIZE || MemBlockInfoDetailed();
-}

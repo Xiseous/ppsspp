@@ -38,7 +38,7 @@ namespace MIPSComp {
 		// ARM only
 		downcountInRegister = true;
 		useNEONVFPU = false;  // true
-		if (Disabled(JitDisable::SIMD))
+		if (!cpu_info.bNEON || Disabled(JitDisable::SIMD))
 			useNEONVFPU = false;
 
 		//ARM64
@@ -60,14 +60,10 @@ namespace MIPSComp {
 
 		useStaticAlloc = false;
 		enablePointerify = false;
-#if PPSSPP_ARCH(ARM64) || PPSSPP_ARCH(RISCV64) || PPSSPP_ARCH(LOONGARCH64)
+#if PPSSPP_ARCH(ARM64)
 		useStaticAlloc = !Disabled(JitDisable::STATIC_ALLOC);
 		// iOS/etc. may disable at runtime if Memory::base is not nicely aligned.
 		enablePointerify = !Disabled(JitDisable::POINTERIFY);
-#endif
-#if PPSSPP_ARCH(RISCV64)
-		// Seems to perform slightly better than a checked entry at the start.
-		useBackJump = true;
 #endif
 	}
 

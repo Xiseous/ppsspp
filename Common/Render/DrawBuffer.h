@@ -14,6 +14,11 @@
 struct Atlas;
 
 enum {
+	// Enough?
+	MAX_VERTS = 65536,
+};
+
+enum {
 	ALIGN_LEFT = 0,
 	ALIGN_RIGHT = 16,
 	ALIGN_TOP = 0,
@@ -27,6 +32,11 @@ enum {
 	ALIGN_TOPRIGHT = ALIGN_TOP | ALIGN_RIGHT,
 	ALIGN_BOTTOMLEFT = ALIGN_BOTTOM | ALIGN_LEFT,
 	ALIGN_BOTTOMRIGHT = ALIGN_BOTTOM | ALIGN_RIGHT,
+
+	// Only for text drawing
+	ROTATE_90DEG_LEFT = 256,
+	ROTATE_90DEG_RIGHT = 512,
+	ROTATE_180DEG = 1024,
 
 	// For "uncachable" text like debug log.
 	// Avoids using system font drawing as it's too slow.
@@ -73,13 +83,12 @@ public:
 
 	void RectOutline(float x, float y, float w, float h, uint32_t color, int align = ALIGN_TOPLEFT);
 
-	// NOTE: This one takes x2/y2 instead of w/h, better for gap-free graphics.
-	void RectVGradient(float x1, float y1, float x2, float y2, uint32_t colorTop, uint32_t colorBottom);
+	void RectVGradient(float x, float y, float w, float h, uint32_t colorTop, uint32_t colorBottom);
 	void RectVDarkFaded(float x, float y, float w, float h, uint32_t colorTop) {
-		RectVGradient(x, y, x + w, y + h, colorTop, darkenColor(colorTop));
+		RectVGradient(x, y, w, h, colorTop, darkenColor(colorTop));
 	}
 
-	void MultiVGradient(float x, float y, float w, float h, const GradientStop *stops, int numStops);
+	void MultiVGradient(float x, float y, float w, float h, GradientStop *stops, int numStops);
 
 	void RectCenter(float x, float y, float w, float h, uint32_t color) {
 		Rect(x - w/2, y - h/2, w, h, color);
@@ -91,7 +100,6 @@ public:
 		V(x, y, curZ_, color, u, v);
 	}
 
-	void CircleSegment(float x, float y, float radius, float thickness, int segments, float startAngle, float endAngle, uint32_t color, float u_mul);
 	void Circle(float x, float y, float radius, float thickness, int segments, float startAngle, uint32_t color, float u_mul);
 	void FillCircle(float x, float y, float radius, int segments, uint32_t color);
 
@@ -102,10 +110,6 @@ public:
 		atlas = _atlas;
 	}
 	const Atlas *GetAtlas() const { return atlas; }
-	void SetFontAtlas(const Atlas *_atlas) {
-		fontAtlas_ = _atlas;
-	}
-	const Atlas *GetFontAtlas() const { return fontAtlas_; }
 	bool MeasureImage(ImageID atlas_image, float *w, float *h);
 	void DrawImage(ImageID atlas_image, float x, float y, float scale, Color color = COLOR(0xFFFFFF), int align = ALIGN_TOPLEFT);
 
@@ -127,12 +131,15 @@ public:
 	// This is only 6 triangles, much cheaper.
 	void DrawImage2GridH(ImageID atlas_image, float x1, float y1, float x2, Color color = COLOR(0xFFFFFF), float scale = 1.0);
 
-	void MeasureText(FontID font, std::string_view text, float *w, float *h);
-	void MeasureTextRect(FontID font, std::string_view text, float maxWidth, float *w, float *h, int align = 0);
+	void MeasureText(FontID font, const char *text, float *w, float *h);
 
-	void DrawTextRect(FontID font, std::string_view text, float x, float y, float w, float h, Color color = 0xFFFFFFFF, int align = 0);
-	void DrawText(FontID font, std::string_view text, float x, float y, Color color = 0xFFFFFFFF, int align = 0);
-	void DrawTextShadow(FontID font, std::string_view text, float x, float y, Color color = 0xFFFFFFFF, int align = 0);
+	// NOTE: Count is in plain chars not utf-8 chars!
+	void MeasureTextCount(FontID font, const char *text, int count, float *w, float *h);
+	void MeasureTextRect(FontID font, const char *text, int count, const Bounds &bounds, float *w, float *h, int align = 0);
+
+	void DrawTextRect(FontID font, const char *text, float x, float y, float w, float h, Color color = 0xFFFFFFFF, int align = 0);
+	void DrawText(FontID font, const char *text, float x, float y, Color color = 0xFFFFFFFF, int align = 0);
+	void DrawTextShadow(FontID font, const char *text, float x, float y, Color color = 0xFFFFFFFF, int align = 0);
 
 	void SetFontScale(float xs, float ys) {
 		fontscalex = xs;
@@ -169,16 +176,6 @@ public:
 		curZ_ = curZ;
 	}
 
-	void SetTintSaturation(float tint, float saturation) {
-		tint_ = tint;
-		saturation_ = saturation;
-	}
-
-	enum {
-		// TODO: Can probably shrink this. Currently consumes 1.5MB.
-		MAX_VERTS = 65536,
-	};
-
 private:
 	struct Vertex {
 		float x, y, z;
@@ -192,19 +189,18 @@ private:
 	float alpha_ = 1.0f;
 	std::vector<float> alphaStack_;
 
-	Draw::DrawContext *draw_ = nullptr;
-	Draw::Pipeline *pipeline_ = nullptr;
+	Draw::DrawContext *draw_;
+	Draw::Buffer *vbuf_;
+	Draw::Pipeline *pipeline_;
 
 	Vertex *verts_;
-	int count_ = 0;
-	const Atlas *atlas = nullptr;
-	const Atlas *fontAtlas_ = nullptr;
+	int count_;
+	const Atlas *atlas;
 
-	bool inited_ = false;
-	float fontscalex = 1.0f;
-	float fontscaley = 1.0f;
+	bool inited_;
+	float fontscalex;
+	float fontscaley;
 
-	float tint_ = 0.0f;
-	float saturation_ = 1.0f;
 	float curZ_ = 0.0f;
 };
+

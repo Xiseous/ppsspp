@@ -7,25 +7,16 @@
 
 struct Event : public Waitable {
 public:
-	Event() {
-		triggered_ = false;
-	}
-
-	~Event() {
-		// Make sure no one is still waiting, and any notify lock is released.
-		Notify();
-	}
-
 	void Wait() override {
 		if (triggered_) {
 			return;
 		}
-		std::unique_lock<std::mutex> lock(mutex_);
-		cond_.wait(lock, [&] { return triggered_.load(); });
+		std::unique_lock<std::mutex> lock;
+		cond_.wait(lock, [&] { return !triggered_; });
 	}
 
 	void Notify() {
-		std::unique_lock<std::mutex> lock(mutex_);
+		std::unique_lock<std::mutex> lock;
 		triggered_ = true;
 		cond_.notify_one();
 	}
@@ -33,5 +24,5 @@ public:
 private:
 	std::condition_variable cond_;
 	std::mutex mutex_;
-	std::atomic<bool> triggered_;
+	bool triggered_ = false;
 };
