@@ -226,6 +226,14 @@ if(WEBOS)
 	set(USE_SYSTEM_ZSTD OFF)
 endif()
 
+if(USE_LIBNX)
+	set(USE_DISCORD OFF)
+	set(USE_MINIUPNPC OFF)
+	set(USE_RCHEEVOS OFF)
+	set(USE_LIBCHDR OFF)
+	set(USE_CHD OFF)
+endif()
+
 if(UNIX AND NOT (APPLE OR ANDROID OR USE_LIBNX) AND VULKAN)
 	if(USING_X11_VULKAN)
 		message("Using X11 for Vulkan")
@@ -2557,10 +2565,17 @@ else()
 	include_directories(ext/zstd/lib)
 endif()
 
-include_directories(ext/libchdr/include)
+if(NOT USE_LIBNX)
+	include_directories(ext/libchdr/include)
+endif()
 
-target_link_libraries(${CoreLibName} Common native chdr kirk cityhash sfmt19937 xbrz xxhash rcheevos minimp3 at3_standalone lua ${GlslangLibs}
-	${CoreExtraLibs} ${OPENGL_LIBRARIES} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})
+if(USE_LIBNX)
+	target_link_libraries(${CoreLibName} Common native kirk cityhash sfmt19937 xbrz xxhash minimp3 at3_standalone lua
+		${CoreExtraLibs} ${OPENGL_LIBRARIES} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})
+else()
+	target_link_libraries(${CoreLibName} Common native chdr kirk cityhash sfmt19937 xbrz xxhash rcheevos minimp3 at3_standalone lua ${GlslangLibs}
+		${CoreExtraLibs} ${OPENGL_LIBRARIES} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})
+endif()
 
 # Winsock
 if(WIN32)
