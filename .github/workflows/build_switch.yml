@@ -103,7 +103,8 @@ jobs:
       run: |
         . $DEVKITPRO/switchvars.sh
         cd build-switch
-        make -j$(nproc)
+        # Use single-threaded build with verbose output to catch errors
+        make VERBOSE=1 2>&1 | tee build.log || (tail -100 build.log && exit 1)
 
     - name: Generate NRO file
       shell: bash
