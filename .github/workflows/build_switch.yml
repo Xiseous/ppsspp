@@ -50,6 +50,9 @@ jobs:
         # Fix sys/mman.h missing on Switch in SocketCompat.h
         sed -i 's/#include <sys\/mman.h>/#if !PPSSPP_PLATFORM(SWITCH)\n#include <sys\/mman.h>\n#endif/' Common/Net/SocketCompat.h
         
+        # Fix sys/syscall.h missing on Switch in ThreadUtil.cpp
+        sed -i 's/#include <sys\/syscall.h>/#if !PPSSPP_PLATFORM(SWITCH)\n#include <sys\/syscall.h>\n#endif/' Common/Thread/ThreadUtil.cpp
+        
         # Disable armips for Switch (filesystem library not compatible)
         sed -i 's/add_subdirectory(armips)/if(NOT USE_LIBNX)\n\tadd_subdirectory(armips)\nendif()/' ext/CMakeLists.txt
         
