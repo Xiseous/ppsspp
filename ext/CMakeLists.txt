@@ -9,6 +9,8 @@ set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "let's not build binaries we don't ne
 set(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS ON CACHE BOOL "let's not use exceptions" FORCE)
 set(ENABLE_SPVREMAPPER OFF CACHE BOOL "we don't need spvremapper" FORCE)
 set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "we don't need zstd programs" FORCE)
+set(ZSTD_BUILD_SHARED OFF CACHE BOOL "we only need static zstd" FORCE)
+set(ZSTD_BUILD_STATIC ON CACHE BOOL "build static zstd" FORCE)
 
 # This is really a workaround for an NDK 20 compiler issue (PPSSPP issue #12105), but shouldn't hurt.
 if(ANDROID)
