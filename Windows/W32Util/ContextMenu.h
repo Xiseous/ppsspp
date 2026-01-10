@@ -30,6 +30,10 @@ enum class ContextMenuID {
 	DISPLAYLISTVIEW = 6,
 	GEDBG_STATE = 7,
 	GEDBG_PREVIEW = 8,
+	GEDBG_MATRIX = 9,
+	GEDBG_TABS = 10,
+	CPUWATCHLIST = 11,
+	CPUADDWATCH = 12,
 };
 
 struct ContextPoint {

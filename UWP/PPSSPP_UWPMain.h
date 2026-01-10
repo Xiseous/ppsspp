@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <mutex>
 
@@ -7,11 +7,12 @@
 
 #include "Common/GraphicsContext.h"
 #include "Common/DeviceResources.h"
+#include "Windows/InputDevice.h"
 
 // Renders Direct2D and 3D content on the screen.
 namespace UWP {
 
-ref class App;
+struct App;
 enum class HardwareButton;
 
 class UWPGraphicsContext : public GraphicsContext {
@@ -19,8 +20,6 @@ public:
 	UWPGraphicsContext(std::shared_ptr<DX::DeviceResources> resources);
 
 	void Shutdown() override;
-	void SwapInterval(int interval) override;
-	void SwapBuffers() override {}
 	void Resize() override {}
 	Draw::DrawContext * GetDrawContext() override {
 		return draw_;
@@ -33,9 +32,10 @@ private:
 
 class PPSSPP_UWPMain : public DX::IDeviceNotify {
 public:
-	PPSSPP_UWPMain(App ^app, const std::shared_ptr<DX::DeviceResources>& deviceResources);
+	PPSSPP_UWPMain(App *app, const std::shared_ptr<DX::DeviceResources>& deviceResources);
 	~PPSSPP_UWPMain();
 	void CreateWindowSizeDependentResources();
+	void UpdateScreenState();
 	bool Render();
 
 	// IDeviceNotify
@@ -44,10 +44,11 @@ public:
 
 	// Various forwards from App, in simplified format.
 	// Not sure whether this abstraction is worth it.
-	void OnKeyDown(int scanCode, Windows::System::VirtualKey virtualKey, int repeatCount);
-	void OnKeyUp(int scanCode, Windows::System::VirtualKey virtualKey);
+	void OnKeyDown(int scanCode, winrt::Windows::System::VirtualKey virtualKey, int repeatCount);
+	void OnKeyUp(int scanCode, winrt::Windows::System::VirtualKey virtualKey);
+	void OnCharacterReceived(int scanCode,unsigned int keyCode);
 
-	void OnTouchEvent(int touchEvent, int touchId, float x, float y, double timestamp);
+	void OnTouchEvent(TouchInputFlags flags, int touchId, float x, float y, double timestamp);
 
 	void OnMouseWheel(float delta);
 
@@ -59,10 +60,8 @@ public:
 	void OnSuspend();
 	void Close();
 
-	void LoadStorageFile(Windows::Storage::StorageFile ^file);
-
 private:
-	App ^app_;
+	App *app_;
 
 	// Cached pointer to device resources.
 	std::shared_ptr<DX::DeviceResources> m_deviceResources;

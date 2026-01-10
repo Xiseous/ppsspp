@@ -1,8 +1,8 @@
-#include "Common/CommonWindows.h"
 #include <vector>
 #include <algorithm>
-#include "Windows/W32Util/DialogManager.h"
 
+#include "Common/CommonWindows.h"
+#include "Windows/W32Util/DialogManager.h"
 
 Dialog::Dialog(LPCSTR res, HINSTANCE _hInstance, HWND _hParent) 
 {
@@ -76,6 +76,9 @@ void DialogManager::AddDlg(Dialog *dialog)
 
 void DialogManager::RemoveDlg(Dialog *dialog)
 {
+	if (!dialog) {
+		return;
+	}
 	dialogs.erase(std::remove(dialogs.begin(), dialogs.end(), dialog), dialogs.end());
 }
 

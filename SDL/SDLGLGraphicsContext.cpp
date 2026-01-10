@@ -51,13 +51,13 @@ int CheckEGLErrors(const char *file, int line) {
 		case EGL_BAD_NATIVE_WINDOW:         errortext = "EGL_BAD_NATIVE_WINDOW"; break;
 		default:                            errortext = "unknown"; break;
 	}
-	printf( "ERROR: EGL Error %s detected in file %s at line %d (0x%X)\n", errortext, file, line, error );
+	fprintf( stderr, "ERROR: EGL Error %s detected in file %s at line %d (0x%X)\n", errortext, file, line, error );
 	return 1;
 }
 
 #define EGL_ERROR(str, check) { \
 		if (check) CheckEGLErrors( __FILE__, __LINE__ ); \
-		printf("EGL ERROR: " str "\n"); \
+		fprintf(stderr, "EGL ERROR: " str "\n"); \
 		return 1; \
 	}
 
@@ -91,7 +91,7 @@ static int8_t EGL_Open(SDL_Window *window) {
 	SDL_SysWMinfo sysInfo{};
 	SDL_VERSION(&sysInfo.version);
 	if (!SDL_GetWindowWMInfo(window, &sysInfo)) {
-		printf("ERROR: Unable to retrieve native window handle\n");
+		fprintf(stderr, "ERROR: Unable to retrieve native window handle\n");
 		g_Display = (EGLNativeDisplayType)XOpenDisplay(nullptr);
 		g_XDisplayOpen = g_Display != nullptr;
 		if (!g_XDisplayOpen)
@@ -112,7 +112,7 @@ static int8_t EGL_Open(SDL_Window *window) {
 #if SDL_VERSION_ATLEAST(2, 0, 2) && defined(SDL_VIDEO_DRIVER_WAYLAND)
 		case SDL_SYSWM_WAYLAND:
 			g_Display = (EGLNativeDisplayType)sysInfo.info.wl.display;
-			g_Window = (EGLNativeWindowType)sysInfo.info.wl.shell_surface;
+			g_Window = (EGLNativeWindowType)sysInfo.info.wl.egl_window;
 			break;
 #endif
 #if SDL_VERSION_ATLEAST(2, 0, 5) && defined(SDL_VIDEO_DRIVER_VIVANTE)
@@ -299,8 +299,15 @@ void EGL_Close() {
 
 #endif // USING_EGL
 
+bool SDLGLGraphicsContext::InitFromRenderThread(std::string *errorMessage) {
+	bool retval = GraphicsContext::InitFromRenderThread(errorMessage);
+	// HACK: Ensure that the swap interval is set after context creation (needed for kmsdrm)
+	SDL_GL_SetSwapInterval(1);
+	return retval;
+}
+
 // Returns 0 on success.
-int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std::string *error_message) {
+int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int w, int h, int mode, std::string *error_message, int force_gl_version) {
 	struct GLVersionPair {
 		int major;
 		int minor;
@@ -321,6 +328,12 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 	SDL_GLContext glContext = nullptr;
 	for (size_t i = 0; i < ARRAY_SIZE(attemptVersions); ++i) {
 		const auto &ver = attemptVersions[i];
+		// If we force a specific OpenGL version, skip the ones
+		// that do not match, which may be all of them - e.g.
+		// requesting nonsensical "--graphics=opengl0" reliably
+		// skips straight to fallback code below.
+		if (force_gl_version >= 0 && 10 * ver.major + ver.minor != force_gl_version)
+			continue;
 		// Make sure to request a somewhat modern GL context at least - the
 		// latest supported by MacOS X (really, really sad...)
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, ver.major);
@@ -333,7 +346,7 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 		SetGLCoreContext(true);
 #endif
 
-		window = SDL_CreateWindow("PPSSPP", x, y, pixel_xres, pixel_yres, mode);
+		window = SDL_CreateWindow("PPSSPP", x, y, w, h, mode);
 		if (!window) {
 			// Definitely don't shutdown here: we'll keep trying more GL versions.
 			fprintf(stderr, "SDL_CreateWindow failed for GL %d.%d: %s\n", ver.major, ver.minor, SDL_GetError());
@@ -358,7 +371,7 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 		SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 		SetGLCoreContext(false);
 
-		window = SDL_CreateWindow("PPSSPP", x, y, pixel_xres, pixel_yres, mode);
+		window = SDL_CreateWindow("PPSSPP", x, y, w, h, mode);
 		if (window == nullptr) {
 			NativeShutdown();
 			fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -368,6 +381,7 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 
 		glContext = SDL_GL_CreateContext(window);
 		if (glContext == nullptr) {
+			// OK, now we really have tried everything.
 			NativeShutdown();
 			fprintf(stderr, "SDL_GL_CreateContext failed: %s\n", SDL_GetError());
 			SDL_Quit();
@@ -380,9 +394,9 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 
 #ifdef USING_EGL
 	if (EGL_Open(window) != 0) {
-		printf("EGL_Open() failed\n");
+		fprintf(stderr, "EGL_Open() failed\n");
 	} else if (EGL_Init(window) != 0) {
-		printf("EGL_Init() failed\n");
+		fprintf(stderr, "EGL_Init() failed\n");
 	} else {
 		useEGLSwap = true;
 	}
@@ -394,8 +408,10 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 	if (gl_extensions.IsCoreContext) {
 		glewExperimental = true;
 	}
-	if (GLEW_OK != glewInit()) {
-		printf("Failed to initialize glew!\n");
+	GLenum glew_err = glewInit();
+	// glx is not required, igore.
+	if (glew_err != GLEW_OK && glew_err != GLEW_ERROR_NO_GLX_DISPLAY) {
+		fprintf(stderr, "Failed to initialize glew!\n");
 		return 1;
 	}
 	// Unfortunately, glew will generate an invalid enum error, ignore.
@@ -403,17 +419,18 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 		glGetError();
 
 	if (GLEW_VERSION_2_0) {
-		printf("OpenGL 2.0 or higher.\n");
+		fprintf(stderr, "OpenGL 2.0 or higher.\n");
 	} else {
-		printf("Sorry, this program requires OpenGL 2.0.\n");
+		fprintf(stderr, "Sorry, this program requires OpenGL 2.0.\n");
 		return 1;
 	}
 #endif
 
 	// Finally we can do the regular initialization.
 	CheckGLExtensions();
-	draw_ = Draw::T3DCreateGLContext();
+	draw_ = Draw::T3DCreateGLContext(true);
 	renderManager_ = (GLRenderManager *)draw_->GetNativeObject(Draw::NativeObject::RENDER_MANAGER);
+	renderManager_->SetInflightFrames(g_Config.iInflightFrames);
 	SetGPUBackend(GPUBackend::OPENGL);
 	bool success = draw_->CreatePresets();
 	_assert_(success);
@@ -429,26 +446,23 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int mode, std:
 	});
 
 	renderManager_->SetSwapIntervalFunction([&](int interval) {
-		INFO_LOG(G3D, "SDL SwapInterval: %d", interval);
+		INFO_LOG(Log::G3D, "SDL SwapInterval: %d", interval);
 		SDL_GL_SetSwapInterval(interval);
 	});
+
 	window_ = window;
 	return 0;
-}
-
-void SDLGLGraphicsContext::SwapInterval(int interval) {
-	renderManager_->SwapInterval(interval);
-}
-
-void SDLGLGraphicsContext::Shutdown() {
 }
 
 void SDLGLGraphicsContext::ShutdownFromRenderThread() {
 	delete draw_;
 	draw_ = nullptr;
+	renderManager_ = nullptr;
 
 #ifdef USING_EGL
 	EGL_Close();
 #endif
 	SDL_GL_DeleteContext(glContext);
+	glContext = nullptr;
+	window_ = nullptr;
 }

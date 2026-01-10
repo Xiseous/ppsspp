@@ -1,10 +1,9 @@
 #include "Windows/GEDebugger/TabDisplayLists.h"
 #include "Windows/GEDebugger/GEDebugger.h"
 #include "Windows/GEDebugger/CtrlDisplayListView.h"
-#include "Windows/WindowsHost.h"
 #include "Windows/MainWindow.h"
 #include "Windows/main.h"
-#include "GPU/GPUInterface.h"
+#include "GPU/GPUCommon.h"
 #include "GPU/Common/GPUDebugInterface.h"
 #include "GPU/GPUState.h"
 #include "Core/Config.h"
@@ -35,7 +34,7 @@ CtrlDisplayListStack::CtrlDisplayListStack(HWND hwnd): GenericListControl(hwnd,d
 	Update();
 }
 
-void CtrlDisplayListStack::GetColumnText(wchar_t* dest, int row, int col)
+void CtrlDisplayListStack::GetColumnText(wchar_t* dest, size_t destSize, int row, int col)
 {
 	if (row < 0 || row >= (int)ARRAY_SIZE(list.stack)) {
 		return;
@@ -86,7 +85,7 @@ CtrlAllDisplayLists::CtrlAllDisplayLists(HWND hwnd): GenericListControl(hwnd,all
 	Update();
 }
 
-void CtrlAllDisplayLists::GetColumnText(wchar_t* dest, int row, int col)
+void CtrlAllDisplayLists::GetColumnText(wchar_t* dest, size_t destSize, int row, int col)
 {
 	if (row < 0 || row >= (int)lists.size()) {
 		return;
@@ -201,7 +200,7 @@ void TabDisplayLists::UpdateSize(WORD width, WORD height)
 	positions[0].x = borderMargin;
 	positions[0].y = borderMargin;
 	positions[0].w = width*2/3;
-	positions[0].h = min(height*2/5,200);
+	positions[0].h = std::min(height * 2 / 5, 200);
 
 	// Stack
 	positions[1].x = positions[0].x+positions[0].w+betweenControlsMargin;
@@ -227,9 +226,9 @@ void TabDisplayLists::UpdateSize(WORD width, WORD height)
 	}
 }
 
-void TabDisplayLists::Update(bool reload)
+void TabDisplayLists::Update()
 {
-	if (reload && gpuDebug != NULL)
+	if (gpuDebug != NULL)
 	{
 		lists = gpuDebug->ActiveDisplayLists();
 	}
@@ -258,11 +257,11 @@ BOOL TabDisplayLists::DlgProc(UINT message, WPARAM wParam, LPARAM lParam) {
 		switch (wParam)
 		{
 		case IDC_GEDBG_LISTS_STACK:
-			stack->HandleNotify(lParam);
-			break;
+			SetWindowLongPtr(m_hDlg, DWLP_MSGRESULT, stack->HandleNotify(lParam));
+			return TRUE;
 		case IDC_GEDBG_LISTS_ALLLISTS:
-			allLists->HandleNotify(lParam);
-			break;
+			SetWindowLongPtr(m_hDlg, DWLP_MSGRESULT, allLists->HandleNotify(lParam));
+			return TRUE;
 		}
 		break;
 

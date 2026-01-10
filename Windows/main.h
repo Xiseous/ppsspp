@@ -19,12 +19,16 @@
 #pragma once
 
 #include "ppsspp_config.h"
+
 #include "Debugger/Debugger_Disasm.h"
 #include "Debugger/Debugger_MemoryDlg.h"
+#include "Debugger/Debugger_VFPUDlg.h"
+
 #include "Common/CommonWindows.h"
 
 extern CDisasm *disasmWindow;
 extern CMemoryDlg *memoryWindow;
+extern CVFPUDlg *vfpudlg;
 
 #if PPSSPP_API(ANY_GL)
 #include "Windows/GEDebugger/GEDebugger.h"
@@ -33,4 +37,4 @@ extern CGEDebugger* geDebuggerWindow;
 
 extern int g_activeWindow;
 
-enum { WINDOW_MAINWINDOW, WINDOW_CPUDEBUGGER, WINDOW_GEDEBUGGER };
+enum { WINDOW_MAINWINDOW, WINDOW_CPUDEBUGGER, WINDOW_GEDEBUGGER, WINDOW_OTHER };

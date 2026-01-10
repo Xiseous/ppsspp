@@ -1,10 +1,7 @@
-// NOTE: Apologies for the quality of this code, this is really from pre-opensource Dolphin - that is, 2003.
-
 #pragma once
 
 #include "Windows/W32Util/DialogManager.h"
 #include "Windows/W32Util/TabControl.h"
-#include "Windows/Debugger/CtrlDisAsmView.h"
 #include "Windows/Debugger/Debugger_Lists.h"
 #include "Core/Core.h"
 #include "Core/MIPS/MIPSDebugInterface.h"
@@ -13,21 +10,25 @@
 
 #include "Common/CommonWindows.h"
 
-class CDisasm : public Dialog
-{
+class CtrlDisAsmView;
+class BreakpointManager;
+
+class CDisasm : public Dialog {
 private:
 	int minWidth;
 	int minHeight;
-	DebugInterface *cpu;
-	u64 lastTicks;
+	MIPSDebugInterface *cpu;
+	u64 lastTicks_;
 
 	HWND statusBarWnd;
 	CtrlBreakpointList* breakpointList;
 	CtrlThreadList* threadList;
 	CtrlStackTraceView* stackTraceView;
 	CtrlModuleList* moduleList;
+	CtrlWatchList *watchList_;
 	TabControl* leftTabs;
 	TabControl* bottomTabs;
+	BreakpointManager *breakpoints_;
 	std::vector<BreakPoint> displayedBreakPoints_;
 	std::vector<MemCheck> displayedMemChecks_;
 	bool keepStatusBarText = false;
@@ -38,28 +39,31 @@ private:
 	void UpdateSize(WORD width, WORD height);
 	void SavePosition();
 	void updateThreadLabel(bool clear);
-	void stepInto();
-	void stepOver();
-	void stepOut();
+	void step(CPUStepType stepType);
 	void runToLine();
 
 public:
 	int index;
 
-	CDisasm(HINSTANCE _hInstance, HWND _hParent, DebugInterface *cpu);
+	CDisasm(HINSTANCE _hInstance, HWND _hParent, MIPSDebugInterface *cpu);
 	~CDisasm();
 
 	void Show(bool bShow, bool includeToTop = true) override;
 
 	void Update() override {
-		UpdateDialog(true);
+		UpdateDialog();
 		SetDebugMode(Core_IsStepping(), false);
 		breakpointList->reloadBreakpoints();
 	};
-	void UpdateDialog(bool _bComplete = false);
-	// SetDebugMode 
+	void UpdateDialog();
 	void SetDebugMode(bool _bDebug, bool switchPC);
 
 	void Goto(u32 addr);
 	void NotifyMapLoaded();
+
+private:
+	CtrlDisAsmView *DisAsmView();
+	void ProcessUpdateDialog();
+
+	bool updateDialogScheduled_ = false;
 };

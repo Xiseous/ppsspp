@@ -21,8 +21,9 @@
 
 #include "Common/UI/UIScreen.h"
 #include "Common/UI/ViewGroup.h"
-#include "UI/MiscScreens.h"
 #include "Common/File/Path.h"
+#include "UI/BaseScreens.h"
+#include "UI/SimpleDialogScreen.h"
 
 enum class ReportingOverallScore : int {
 	PERFECT = 0,
@@ -33,31 +34,36 @@ enum class ReportingOverallScore : int {
 	INVALID = -1,
 };
 
-class ReportScreen : public UIDialogScreenWithGameBackground {
+class ReportScreen : public UITwoPaneBaseDialogScreen {
 public:
 	ReportScreen(const Path &gamePath);
 
+	const char *tag() const override { return "Report"; }
+
+	// For the screenshotting functionality to work.
+	ScreenRenderRole renderRole(bool isTop) const override;
+
 protected:
-	void postRender() override;
+	ScreenRenderFlags render(ScreenRenderMode mode) override;
 	void update() override;
 	void resized() override;
-	void CreateViews() override;
+	void CreateSettingsViews(UI::ViewGroup *parent) override;
+	void CreateContentViews(UI::ViewGroup *parent) override;
 	void UpdateSubmit();
 	void UpdateCRCInfo();
 	void UpdateOverallDescription();
+	std::string_view GetTitle() const override;
 
-	UI::EventReturn HandleChoice(UI::EventParams &e);
-	UI::EventReturn HandleSubmit(UI::EventParams &e);
-	UI::EventReturn HandleBrowser(UI::EventParams &e);
-	UI::EventReturn HandleShowCRC(UI::EventParams &e);
-	UI::EventReturn HandleReportingChange(UI::EventParams &e);
+	void HandleChoice(UI::EventParams &e);
+	void HandleSubmit(UI::EventParams &e);
+	void HandleBrowser(UI::EventParams &e);
+	void HandleReportingChange(UI::EventParams &e);
 
 	UI::Choice *submit_ = nullptr;
 	UI::View *screenshot_ = nullptr;
 	UI::TextView *reportingNotice_ = nullptr;
 	UI::TextView *overallDescription_ = nullptr;
 	UI::TextView *crcInfo_ = nullptr;
-	UI::Choice *showCrcButton_ = nullptr;
 	Path screenshotFilename_;
 
 	ReportingOverallScore overall_ = ReportingOverallScore::INVALID;
@@ -68,22 +74,27 @@ protected:
 	bool ratingEnabled_;
 	bool tookScreenshot_ = false;
 	bool includeScreenshot_ = true;
-	bool showCRC_ = false;
+	mutable std::string titleCache_;
 };
 
-class ReportFinishScreen : public UIDialogScreenWithGameBackground {
+class ReportFinishScreen : public UISimpleBaseDialogScreen {
 public:
 	ReportFinishScreen(const Path &gamePath, ReportingOverallScore score);
 
+	const char *tag() const override { return "ReportFinish"; }
+
 protected:
+	std::string_view GetTitle() const override;
+
 	void update() override;
-	void CreateViews() override;
+	void CreateDialogViews(UI::ViewGroup *parent) override;
 	void ShowSuggestions();
 
-	UI::EventReturn HandleViewFeedback(UI::EventParams &e);
+	void HandleViewFeedback(UI::EventParams &e);
 
 	UI::TextView *resultNotice_ = nullptr;
 	UI::LinearLayout *resultItems_ = nullptr;
-	ReportingOverallScore score_;
+	Path gamePath_;
+	ReportingOverallScore score_{};
 	bool setStatus_ = false;
 };

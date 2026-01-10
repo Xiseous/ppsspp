@@ -1,20 +1,19 @@
-// NOTE: Apologies for the quality of this code, this is really from pre-opensource Dolphin - that is, 2003.
-
-#include <math.h>
+#include <cmath>
 #include <tchar.h>
 
 #include "Common/System/Display.h"
 #include "Common/Data/Encoding/Utf8.h"
-#include "Windows/resource.h"
+#include "Core/Config.h"
 #include "Core/MemMap.h"
+#include "Core/Reporting.h"
 #include "Windows/W32Util/ContextMenu.h"
 #include "Windows/W32Util/Misc.h"
 #include "Windows/InputBox.h"
+#include "Windows/resource.h"
 
 #include "CtrlRegisterList.h"
 #include "Debugger_MemoryDlg.h"
 
-#include "Core/Config.h"
 #include "Debugger_Disasm.h"
 #include "DebuggerShared.h"
 
@@ -23,6 +22,9 @@
 enum { REGISTER_PC = 32, REGISTER_HI, REGISTER_LO, REGISTERS_END };
 
 TCHAR CtrlRegisterList::szClassName[] = _T("CtrlRegisterList");
+
+static constexpr UINT_PTR IDT_REDRAW = 0xC0DE0001;
+static constexpr UINT REDRAW_DELAY = 1000 / 60;
 
 void CtrlRegisterList::init()
 {
@@ -103,6 +105,16 @@ LRESULT CALLBACK CtrlRegisterList::wndProc(HWND hwnd, UINT msg, WPARAM wParam, L
 		break;
 	case WM_GETDLGCODE:	// want chars so that we can return 0 on key press and supress the beeping sound
 		return DLGC_WANTARROWS|DLGC_WANTCHARS;
+
+	case WM_TIMER:
+		if (wParam == IDT_REDRAW) {
+			InvalidateRect(hwnd, nullptr, FALSE);
+			UpdateWindow(hwnd);
+			ccp->redrawScheduled_ = false;
+			KillTimer(hwnd, wParam);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -119,7 +131,7 @@ CtrlRegisterList::CtrlRegisterList(HWND _wnd)
 	: wnd(_wnd) {
 	SetWindowLongPtr(wnd, GWLP_USERDATA, (LONG_PTR)this);
 
-	const float fontScale = 1.0f / g_dpi_scale_real_y;
+	const float fontScale = 1.0f / g_display.dpi_scale_real_y;
 	rowHeight = g_Config.iFontHeight * fontScale;
 	int charWidth = g_Config.iFontWidth * fontScale;
 	font = CreateFont(rowHeight, charWidth, 0, 0,
@@ -130,10 +142,8 @@ CtrlRegisterList::CtrlRegisterList(HWND _wnd)
 CtrlRegisterList::~CtrlRegisterList()
 {
 	DeleteObject(font);
-	if (lastCat0Values != NULL)
-		delete [] lastCat0Values;
-	if (changedCat0Regs != NULL)
-		delete [] changedCat0Regs;
+	delete [] lastCat0Values;
+	delete [] changedCat0Regs;
 }
 
 void fillRect(HDC hdc, RECT *rect, COLORREF colour);
@@ -239,12 +249,12 @@ void CtrlRegisterList::onPaint(WPARAM wParam, LPARAM lParam)
 		if (i<cpu->GetNumRegsInCategory(category))
 		{
 			char temp[256];
-			int temp_len = sprintf(temp,"%s",cpu->GetRegName(category,i));
+			int temp_len = snprintf(temp, sizeof(temp), "%s", cpu->GetRegName(category, i).c_str());
 			SetTextColor(hdc,0x600000);
 			TextOutA(hdc,17,rowY1,temp,temp_len);
 			SetTextColor(hdc,0x000000);
 
-			cpu->PrintRegValue(category,i,temp);
+			cpu->PrintRegValue(category, i, temp, sizeof(temp));
 			if (category == 0 && changedCat0Regs[i])
 				SetTextColor(hdc, 0x0000FF);
 			else
@@ -260,15 +270,15 @@ void CtrlRegisterList::onPaint(WPARAM wParam, LPARAM lParam)
 			{
 			case REGISTER_PC:
 				value = cpu->GetPC();
-				len = sprintf(temp,"pc");
+				len = snprintf(temp, sizeof(temp), "pc");
 				break;
 			case REGISTER_HI:
 				value = cpu->GetHi();
-				len = sprintf(temp,"hi");
+				len = snprintf(temp, sizeof(temp), "hi");
 				break;
 			case REGISTER_LO:
 				value = cpu->GetLo();
-				len = sprintf(temp,"lo");
+				len = snprintf(temp, sizeof(temp), "lo");
 				break;
 			default:
 				temp[0] = '\0';
@@ -278,7 +288,7 @@ void CtrlRegisterList::onPaint(WPARAM wParam, LPARAM lParam)
 
 			SetTextColor(hdc,0x600000);
 			TextOutA(hdc,17,rowY1,temp,len);
-			len = sprintf(temp,"%08X",value);
+			len = snprintf(temp, sizeof(temp), "%08X",value);
 			if (changedCat0Regs[i])
 				SetTextColor(hdc, 0x0000FF);
 			else
@@ -342,10 +352,11 @@ void CtrlRegisterList::onKeyDown(WPARAM wParam, LPARAM lParam)
 }
 
 
-void CtrlRegisterList::redraw()
-{
-	InvalidateRect(wnd, NULL, FALSE);
-	UpdateWindow(wnd); 
+void CtrlRegisterList::redraw() {
+	if (!redrawScheduled_) {
+		SetTimer(wnd, IDT_REDRAW, REDRAW_DELAY, nullptr);
+		redrawScheduled_ = true;
+	}
 }
 
 u32 CtrlRegisterList::getSelectedRegValue(char *out, size_t size)
@@ -429,6 +440,7 @@ void CtrlRegisterList::editRegisterValue()
 				cpu->SetRegValue(category, reg, val);
 				break;
 			}
+			Reporting::NotifyDebugger();
 			redraw();
 			SendMessage(GetParent(wnd),WM_DEB_UPDATE,0,0);	// registers changed -> disassembly needs to be updated
 		}
@@ -564,8 +576,8 @@ void CtrlRegisterList::onMouseMove(WPARAM wParam, LPARAM lParam, int button)
 
 int CtrlRegisterList::yToIndex(int y)
 {
-//	int ydiff=y-rect.bottom/2-rowHeight/2;
-//	ydiff=(int)(floorf((float)ydiff / (float)rowHeight))+1;
+//	int ydiff=y-rect.bottom/2-rowHeight_/2;
+//	ydiff=(int)(floorf((float)ydiff / (float)rowHeight_))+1;
 //	return curAddress + ydiff * align;
 	int n = (y/rowHeight) - 1;
 	if (n<0) n=0;

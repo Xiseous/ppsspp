@@ -17,30 +17,46 @@
 
 #pragma once
 
-#include <functional>
+#include "Common/File/Path.h"
 
 #include "Common/UI/View.h"
 #include "Common/UI/UIScreen.h"
 
-#include "UI/MiscScreens.h"
+#include "UI/BaseScreens.h"
+#include "UI/SimpleDialogScreen.h"
 
-class InstallZipScreen : public UIDialogScreenWithBackground {
+class SavedataView;
+
+class InstallZipScreen : public UITwoPaneBaseDialogScreen {
 public:
-	InstallZipScreen(const Path &zipPath) : zipPath_(zipPath) {}
-	virtual void update() override;
-	virtual bool key(const KeyInput &key) override;
+	InstallZipScreen(const Path &zipPath);
+
+	void update() override;
+	bool key(const KeyInput &key) override;
+
+	const char *tag() const override { return "InstallZip"; }
 
 protected:
-	virtual void CreateViews() override;
+	void BeforeCreateViews() override;
+	void CreateSettingsViews(UI::ViewGroup *parent) override;
+	void CreateContentViews(UI::ViewGroup *parent) override;
+	std::string_view GetTitle() const override;
 
 private:
-	UI::EventReturn OnInstall(UI::EventParams &params);
+	void OnInstall(UI::EventParams &params);
+	void OnPlay(UI::EventParams &params);
 
 	UI::Choice *installChoice_ = nullptr;
+	UI::Choice *playChoice_ = nullptr;
 	UI::Choice *backChoice_ = nullptr;
-	UI::ProgressBar *progressBar_ = nullptr;
 	UI::TextView *doneView_ = nullptr;
+	SavedataView *existingSaveView_ = nullptr;
+	Path savedataToOverwrite_;
 	Path zipPath_;
+	std::vector<Path> destFolders_;
+	int destFolderChoice_ = 0;
+
+	ZipFileInfo zipFileInfo_{};
 	bool returnToHomebrew_ = true;
 	bool installStarted_ = false;
 	bool deleteZipFile_ = false;

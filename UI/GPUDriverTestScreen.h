@@ -4,23 +4,25 @@
 #include "Common/UI/Context.h"
 #include "Common/UI/View.h"
 #include "Common/UI/ViewGroup.h"
-#include "Common/UI/UI.h"
+#include "Common/UI/TabHolder.h"
 
-#include "Common/LogManager.h"
-#include "UI/MiscScreens.h"
+#include "Common/Log.h"
+#include "UI/BaseScreens.h"
 #include "Common/GPU/thin3d.h"
 
-class GPUDriverTestScreen : public UIDialogScreenWithBackground {
+class GPUDriverTestScreen : public UIBaseDialogScreen {
 public:
 	GPUDriverTestScreen();
 	~GPUDriverTestScreen();
 
 	void CreateViews() override;
-	void render() override;
+	void DrawForeground(UIContext &dc) override;
+
+	const char *tag() const override { return "GPUDriverTest"; }
 
 private:
-	void DiscardTest();
-	void ShaderTest();
+	void DiscardTest(UIContext &dc);
+	void ShaderTest(UIContext &dc);
 
 	// Common objects
 	Draw::SamplerState *samplerNearest_ = nullptr;

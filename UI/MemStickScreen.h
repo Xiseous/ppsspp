@@ -27,16 +27,21 @@
 #include "Common/UI/UIScreen.h"
 #include "Common/Thread/Promise.h"
 
-#include "UI/MiscScreens.h"
+#include "Core/Util/MemStick.h"
+
+#include "UI/BaseScreens.h"
+#include "UI/MiscViews.h"
+
+class NoticeView;
 
 // MemStickScreen - let's you configure your memory stick directory.
 // Currently only useful for Android.
-class MemStickScreen : public UIDialogScreenWithBackground {
+class MemStickScreen : public UIBaseDialogScreen {
 public:
 	MemStickScreen(bool initialSetup);
-	~MemStickScreen() {}
+	~MemStickScreen() = default;
 
-	std::string tag() const override { return "game"; }
+	const char *tag() const override { return "MemStick"; }
 
 	enum Choice {
 		CHOICE_BROWSE_FOLDER,
@@ -48,89 +53,84 @@ public:
 protected:
 	void CreateViews() override;
 
-	void sendMessage(const char *message, const char *value) override;
 	void dialogFinished(const Screen *dialog, DialogResult result) override;
 	void update() override;
-	void render() override {
+	ScreenRenderFlags render(ScreenRenderMode mode) override {
 		// Simple anti-flicker due to delayed finish.
 		if (!done_) {
 			// render as usual.
-			UIDialogScreenWithBackground::render();
+			return UIBaseDialogScreen::render(mode);
 		} else {
 			// no render. black frame insertion is better than flicker.
 		}
+		return ScreenRenderFlags::NONE;
 	}
 
 private:
 	// Event handlers
-	UI::EventReturn OnHelp(UI::EventParams &e);
+	void OnHelp(UI::EventParams &e);
 
 	// Confirm button sub handlers
-	UI::EventReturn Browse(UI::EventParams &e);
-	UI::EventReturn UseInternalStorage(UI::EventParams &params);
-	UI::EventReturn UseStorageRoot(UI::EventParams &params);
-	UI::EventReturn SetFolderManually(UI::EventParams &params);
+	void Browse(UI::EventParams &e);
+	void UseInternalStorage(UI::EventParams &params);
+	void UseStorageRoot(UI::EventParams &params);
+	void SetFolderManually(UI::EventParams &params);
 
 	// Button handlers.
-	UI::EventReturn OnConfirmClick(UI::EventParams &params);
-	UI::EventReturn OnChoiceClick(UI::EventParams &params);
+	void OnConfirmClick(UI::EventParams &params);
+	void OnChoiceClick(UI::EventParams &params);
 
-	SettingInfoMessage *settingInfo_ = nullptr;
+	NoticeView *errorNoticeView_ = nullptr;
 
 	bool initialSetup_;
 	bool storageBrowserWorking_;
 	bool done_ = false;
 
+#if PPSSPP_PLATFORM(UWP) && !defined(__LIBRETRO__)
+	int choice_ = CHOICE_PRIVATE_DIRECTORY;
+#else
 	int choice_ = 0;
+#endif
 };
 
-class ProgressReporter {
+struct SpaceResult {
+	int64_t bytesFree;
+};
+
+class ConfirmMemstickMoveScreen : public UIBaseDialogScreen {
 public:
-	void Set(std::string value) {
-		std::lock_guard<std::mutex> guard(mutex_);
-		progress_ = value;
-	}
-
-	std::string Get() {
-		std::lock_guard<std::mutex> guard(mutex_);
-		return progress_;
-	}
-
-private:
-	std::string progress_;
-	std::mutex mutex_;
-};
-
-struct MoveResult {
-	bool success;  // Got through the whole move.
-	std::string errorMessage;
-	size_t failedFiles;
-	size_t skippedFiles;
-};
-
-class ConfirmMemstickMoveScreen : public UIDialogScreenWithBackground {
-public:
-	ConfirmMemstickMoveScreen(Path newMemstickFolder, bool initialSetup);
+	ConfirmMemstickMoveScreen(const Path &newMemstickFolder, bool initialSetup);
 	~ConfirmMemstickMoveScreen();
+
+	const char *tag() const override { return "ConfirmMemstickMove"; }
+
 protected:
 	void update() override;
 	void CreateViews() override;
 
 private:
-	UI::EventReturn OnMoveDataClick(UI::EventParams &params);
+	void OnMoveDataClick(UI::EventParams &params);
 	void FinishFolderMove();
 
-	UI::EventReturn OnConfirm(UI::EventParams &params);
+	void OnConfirm(UI::EventParams &params);
 
 	Path newMemstickFolder_;
 	bool existingFilesInNewFolder_;
+	bool folderConflict_;
+
+#if PPSSPP_PLATFORM(UWP) && !defined(__LIBRETRO__)
+	bool moveData_ = false;
+#else
 	bool moveData_ = true;
+#endif
 	bool initialSetup_;
 
-	ProgressReporter progressReporter_;
+	MoveProgressReporter progressReporter_;
 	UI::TextView *progressView_ = nullptr;
+	UI::TextView *newFreeSpaceView_ = nullptr;
 
-	Promise<MoveResult> *moveDataTask_ = nullptr;
+	Promise<MoveResult *> *moveDataTask_ = nullptr;
+	Promise<SpaceResult *> *newSpaceTask_ = nullptr;
 
 	std::string error_;
 };

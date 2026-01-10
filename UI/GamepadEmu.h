@@ -23,25 +23,20 @@
 #include "Common/UI/View.h"
 #include "Common/UI/ViewGroup.h"
 #include "Core/CoreParameter.h"
+#include "Core/HLE/sceCtrl.h"
 #include "UI/EmuScreen.h"
 
 class GamepadView : public UI::View {
 public:
 	GamepadView(const char *key, UI::LayoutParams *layoutParams);
 
-	void Touch(const TouchInput &input) override;
 	bool Key(const KeyInput &input) override {
 		return false;
 	}
-	void Update() override;
 	std::string DescribeText() const override;
 
 protected:
-	virtual float GetButtonOpacity();
-
-	const char *key_;
-	double lastFrameTime_;
-	float secondsWithoutTouch_ = 0.0;
+	std::string key_;
 };
 
 class MultiTouchButton : public GamepadView {
@@ -50,7 +45,7 @@ public:
 		: GamepadView(key, layoutParams), scale_(scale), bgImg_(bgImg), bgDownImg_(bgDownImg), img_(img) {
 	}
 
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
 	void Draw(UIContext &dc) override;
 	void GetContentDimensions(const UIContext &dc, float &w, float &h) const override;
 	virtual bool IsDown() { return pointerDownMask_ != 0; }
@@ -58,6 +53,9 @@ public:
 	MultiTouchButton *FlipImageH(bool flip) { flipImageH_ = flip; return this; }
 	MultiTouchButton *SetAngle(float angle) { angle_ = angle; bgAngle_ = angle; return this; }
 	MultiTouchButton *SetAngle(float angle, float bgAngle) { angle_ = angle; bgAngle_ = bgAngle; return this; }
+
+	bool CanGlide() const;
+	void SetMinimumAlpha(float minAlpha) { minimumAlpha_ = minAlpha; }
 
 protected:
 	uint32_t pointerDownMask_ = 0;
@@ -70,15 +68,15 @@ private:
 	float bgAngle_ = 0.0f;
 	float angle_ = 0.0f;
 	bool flipImageH_ = false;
+	float minimumAlpha_ = 0.0f;
 };
 
 class BoolButton : public MultiTouchButton {
 public:
 	BoolButton(bool *value, const char *key, ImageID bgImg, ImageID bgDownImg, ImageID img, float scale, UI::LayoutParams *layoutParams)
 		: MultiTouchButton(key, bgImg, bgDownImg, img, scale, layoutParams), value_(value) {
-
 	}
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
 	bool IsDown() override { return *value_; }
 
 	UI::Event OnChange;
@@ -92,7 +90,7 @@ public:
 	PSPButton(int pspButtonBit, const char *key, ImageID bgImg, ImageID bgDownImg, ImageID img, float scale, UI::LayoutParams *layoutParams)
 		: MultiTouchButton(key, bgImg, bgDownImg, img, scale, layoutParams), pspButtonBit_(pspButtonBit) {
 	}
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
 	bool IsDown() override;
 
 private:
@@ -103,7 +101,7 @@ class PSPDpad : public GamepadView {
 public:
 	PSPDpad(ImageID arrowIndex, const char *key, ImageID arrowDownIndex, ImageID overlayIndex, float scale, float spacing, UI::LayoutParams *layoutParams);
 
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
 	void Draw(UIContext &dc) override;
 	void GetContentDimensions(const UIContext &dc, float &w, float &h) const override;
 
@@ -124,7 +122,7 @@ class PSPStick : public GamepadView {
 public:
 	PSPStick(ImageID bgImg, const char *key, ImageID stickImg, ImageID stickDownImg, int stick, float scale, UI::LayoutParams *layoutParams);
 
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
 	void Draw(UIContext &dc) override;
 	void GetContentDimensions(const UIContext &dc, float &w, float &h) const override;
 
@@ -147,9 +145,9 @@ private:
 
 class PSPCustomStick : public PSPStick {
 public:
-	PSPCustomStick(ImageID bgImg, const char *key, ImageID stickImg, ImageID stickDownImg, float scale, UI::LayoutParams *layoutParams);
+	PSPCustomStick(ImageID bgImg, const char *key, ImageID stickImg, ImageID stickDownImg, int stick, float scale, UI::LayoutParams *layoutParams);
 
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
 	void Draw(UIContext &dc) override;
 
 private:
@@ -159,37 +157,42 @@ private:
 	float posY_ = 0.0f;
 };
 
-//initializes the layout from Config. if a default layout does not exist,
-//it sets up default values
-void InitPadLayout(float xres, float yres, float globalScale = 1.15f);
-UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause, bool showPauseButton, ControlMapper* controllMapper);
+struct TouchControlConfig;
+
+// Initializes the layout from Config. if a default layout does not exist, it sets up default values
+void InitPadLayout(TouchControlConfig *config, DeviceOrientation orientation, float xres, float yres, float globalScale = 1.15f);
+UI::ViewGroup *CreatePadLayout(const TouchControlConfig &config, float xres, float yres, bool *pause, ControlMapper *controlMapper);
 
 const int D_pad_Radius = 50;
 const int baseActionButtonSpacing = 60;
 
-class ComboKey : public MultiTouchButton {
+class CustomButton : public MultiTouchButton {
 public:
-	ComboKey(uint64_t pspButtonBit, const char *key, bool toggle, ControlMapper* controllMapper, ImageID bgImg, ImageID bgDownImg, ImageID img, float scale, bool invertedContextDimension, UI::LayoutParams *layoutParams)
-		: MultiTouchButton(key, bgImg, bgDownImg, img, scale, layoutParams), pspButtonBit_(pspButtonBit), toggle_(toggle), controllMapper_(controllMapper), on_(false), invertedContextDimension_(invertedContextDimension) {
+	CustomButton(uint64_t pspButtonBit, const char *key, bool toggle, bool repeat, ControlMapper* controllMapper, ImageID bgImg, ImageID bgDownImg, ImageID img, float scale, bool invertedContextDimension, UI::LayoutParams *layoutParams)
+		: MultiTouchButton(key, bgImg, bgDownImg, img, scale, layoutParams), pspButtonBit_(pspButtonBit), toggle_(toggle), repeat_(repeat), controlMapper_(controllMapper), on_(false), invertedContextDimension_(invertedContextDimension) {
 	}
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
+	void Update() override;
 	bool IsDown() override;
 
 	void GetContentDimensions(const UIContext &dc, float &w, float &h) const override;
 private:
 	uint64_t pspButtonBit_;
 	bool toggle_;
-	ControlMapper* controllMapper_;
+	bool repeat_;
+	int pressedFrames_ = 0;
+	ControlMapper* controlMapper_;
 	bool on_;
 	bool invertedContextDimension_; // Swap width and height
 };
 
 class GestureGamepad : public UI::View {
 public:
-	GestureGamepad(ControlMapper* controllMapper) : controllMapper_(controllMapper) {};
+	explicit GestureGamepad(ControlMapper* controllMapper) : controlMapper_(controllMapper) {}
 
-	void Touch(const TouchInput &input) override;
+	bool Touch(const TouchInput &input) override;
 	void Update() override;
+	void Draw(UIContext &dc) override;
 
 protected:
 
@@ -197,6 +200,8 @@ protected:
 	float lastY_ = 0.0f;
 	float deltaX_ = 0.0f;
 	float deltaY_ = 0.0f;
+	float downX_ = 0.0f;
+	float downY_ = 0.0f;
 	float lastTapRelease_ = 0.0f;
 	float lastTouchDown_ = 0.0f;
 	int dragPointerId_ = -1;
@@ -205,17 +210,17 @@ protected:
 	bool swipeUpReleased_ = true;
 	bool swipeDownReleased_ = true;
 	bool haveDoubleTapped_ = false;
-	ControlMapper* controllMapper_;
+	ControlMapper* controlMapper_;
 };
 
 // Just edit this to add new image, shape or button function
-namespace CustomKey {
+namespace CustomKeyData {
 	// Image list
 	struct keyImage {
 		ImageID i; // ImageID
 		float r; // Rotation angle in degree
 	};
-	static const keyImage comboKeyImages[] = {
+	static const keyImage customKeyImages[] = {
 		{ ImageID("I_1"), 0.0f },
 		{ ImageID("I_2"), 0.0f },
 		{ ImageID("I_3"), 0.0f },
@@ -244,6 +249,14 @@ namespace CustomKey {
 		{ ImageID("I_ARROW"), 0.0f},
 		{ ImageID("I_ARROW"), 180.0f},
 		{ ImageID("I_GEAR"), 0.0f},
+		{ ImageID("I_ROTATE_LEFT"), 0.0f},
+		{ ImageID("I_ROTATE_RIGHT"), 0.0f},
+		{ ImageID("I_ARROW_LEFT"), 0.0f},
+		{ ImageID("I_ARROW_RIGHT"), 0.0f},
+		{ ImageID("I_ARROW_UP"), 0.0f},
+		{ ImageID("I_ARROW_DOWN"), 0.0f},
+		{ ImageID("I_THREE_DOTS"), 0.0f},
+		{ ImageID("I_EMPTY"), 0.0f},
 	};
 
 	// Shape list
@@ -254,7 +267,7 @@ namespace CustomKey {
 		bool f; // Flip Horizontally
 		bool d; // Invert height and width for context dimension (for example for 90 degree rot)
 	};
-	static const keyShape comboKeyShapes[] = {
+	static const keyShape customKeyShapes[] = {
 		{ ImageID("I_ROUND"), ImageID("I_ROUND_LINE"), 0.0f, false, false },
 		{ ImageID("I_RECT"), ImageID("I_RECT_LINE"), 0.0f, false, false },
 		{ ImageID("I_RECT"), ImageID("I_RECT_LINE"), 90.0f, false, true },
@@ -265,6 +278,7 @@ namespace CustomKey {
 		{ ImageID("I_DIR"), ImageID("I_DIR_LINE"), 180.0f, false, false },
 		{ ImageID("I_DIR"), ImageID("I_DIR_LINE"), 0.0f, false, false },
 		{ ImageID("I_SQUARE_SHAPE"), ImageID("I_SQUARE_SHAPE_LINE"), 0.0f, false, false },
+		{ ImageID("I_EMPTY"), ImageID("I_EMPTY"), 0.0f, false, false },
 	};
 
 	// Button list
@@ -272,7 +286,8 @@ namespace CustomKey {
 		ImageID i; // UI ImageID
 		uint32_t c; // Key code
 	};
-	static const keyList comboKeyList[] = {
+	// NOTE: This list can NOT be freely reordered! We store a bitmask of the indices.
+	static const keyList g_customKeyList[] = {
 		{ ImageID("I_SQUARE"), CTRL_SQUARE },
 		{ ImageID("I_TRIANGLE"), CTRL_TRIANGLE },
 		{ ImageID("I_CIRCLE"), CTRL_CIRCLE },
@@ -305,12 +320,22 @@ namespace CustomKey {
 		{ ImageID::invalid(), VIRTKEY_ANALOG_ROTATE_CW },
 		{ ImageID::invalid(), VIRTKEY_ANALOG_ROTATE_CCW },
 		{ ImageID::invalid(), VIRTKEY_PAUSE },
+		{ ImageID::invalid(), VIRTKEY_RESET_EMULATION },
 		{ ImageID::invalid(), VIRTKEY_DEVMENU },
 #ifndef MOBILE_DEVICE
 		{ ImageID::invalid(), VIRTKEY_RECORD },
 #endif
+		{ ImageID::invalid(), VIRTKEY_AXIS_X_MIN },
+		{ ImageID::invalid(), VIRTKEY_AXIS_Y_MIN },
+		{ ImageID::invalid(), VIRTKEY_AXIS_X_MAX },
+		{ ImageID::invalid(), VIRTKEY_AXIS_Y_MAX },
+		{ ImageID::invalid(), VIRTKEY_PREVIOUS_SLOT },
+		{ ImageID::invalid(), VIRTKEY_TOGGLE_TOUCH_CONTROLS },
+		{ ImageID::invalid(), VIRTKEY_TOGGLE_DEBUGGER },
+		{ ImageID::invalid(), VIRTKEY_PAUSE_NO_MENU },
+		// IMPORTANT: Only add at the end!
 	};
-	static_assert(ARRAY_SIZE(comboKeyList) <= 64, "Too many key for a uint64_t bit mask");
+	static_assert(ARRAY_SIZE(g_customKeyList) <= 64, "Too many key for a uint64_t bit mask");
 };
 
 // Gesture key only have virtual button that can work without constant press
@@ -336,6 +361,7 @@ namespace GestureKey {
 		VIRTKEY_REWIND, 
 		VIRTKEY_SAVE_STATE,
 		VIRTKEY_LOAD_STATE,
+		VIRTKEY_PREVIOUS_SLOT,
 		VIRTKEY_NEXT_SLOT,
 		VIRTKEY_TEXTURE_DUMP, 
 		VIRTKEY_TEXTURE_REPLACE,
@@ -347,5 +373,14 @@ namespace GestureKey {
 #ifndef MOBILE_DEVICE
 		VIRTKEY_RECORD,
 #endif
+		VIRTKEY_AXIS_X_MIN,
+		VIRTKEY_AXIS_Y_MIN,
+		VIRTKEY_AXIS_X_MAX,
+		VIRTKEY_AXIS_Y_MAX,
+		VIRTKEY_TOGGLE_DEBUGGER,
 	};
 }
+
+void GamepadTouch(bool reset = false);
+void GamepadUpdateOpacity(float force = -1.0f);
+float GamepadGetOpacity();

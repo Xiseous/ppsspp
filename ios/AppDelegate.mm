@@ -1,12 +1,20 @@
 #import "AppDelegate.h"
-#import "ViewController.h"
+#import "SceneDelegate.h"
+#import "iOSCoreAudio.h"
 #import "Common/System/System.h"
 #import "Common/System/NativeApp.h"
 #import "Core/System.h"
 #import "Core/Config.h"
 #import "Common/Log.h"
+#import "IAPManager.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <objc/runtime.h>
+
+// TODO: Unfortunate hack to force link SceneDelegate class.
+// This is necessary because otherwise classes from static libraries aren't loaded.
+// We should move all the iOS code into the main binary directly to avoid this problem.
+__attribute__((used)) static Class _forceLinkSceneDelegate = [SceneDelegate class];
 
 @implementation AppDelegate
 
@@ -16,114 +24,107 @@
 // for AVAudioSessionInterruptionNotification
 -(void) handleAudioSessionInterruption:(NSNotification *)notification {
 	NSNumber *interruptionType = notification.userInfo[AVAudioSessionInterruptionTypeKey];
-	
+
 	// Sanity check in case it's somehow not an NSNumber
 	if (![interruptionType respondsToSelector:@selector(unsignedIntegerValue)]) {
 		return;  // Lets not crash
 	}
-	
+
 	switch ([interruptionType unsignedIntegerValue]) {
 		case AVAudioSessionInterruptionTypeBegan:
-			INFO_LOG(SYSTEM, "ios audio session interruption beginning");
+			INFO_LOG(Log::System, "ios audio session interruption beginning");
 			if (g_Config.bEnableSound) {
-				Audio_Shutdown();
+				iOSCoreAudioShutdown();
 			}
 			break;
-			
+
 		case AVAudioSessionInterruptionTypeEnded:
-			INFO_LOG(SYSTEM, "ios audio session interruption ending");
+			INFO_LOG(Log::System, "ios audio session interruption ending");
 			if (g_Config.bEnableSound) {
-				/* 
+				/*
 				 * Only try to reinit audio if in the foreground, otherwise
 				 * it may fail. Instead, trust that applicationDidBecomeActive
 				 * will do it later.
 				 */
-				if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive) { 
-					Audio_Init();
+				if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive) {
+					iOSCoreAudioInit();
 				}
 			}
 			break;
-			
+
 		default:
 			break;
 	};
 }
 
-// This will be called when the iOS's shared media process was reset 
+// This will be called when the iOS's shared media process was reset
 // Registered in application:didFinishLaunchingWithOptions:
 // for AVAudioSessionMediaServicesWereResetNotification
 -(void) handleMediaServicesWereReset:(NSNotification *)notification {
-	INFO_LOG(SYSTEM, "ios media services were reset - reinitializing audio");
-	
+	INFO_LOG(Log::System, "ios media services were reset - reinitializing audio");
+
 	/*
 	 When media services were reset, Apple recommends:
-	 1) Dispose of orphaned audio objects (such as players, recorders, 
+	 1) Dispose of orphaned audio objects (such as players, recorders,
 	    converters, or audio queues) and create new ones
-	 2) Reset any internal audio states being tracked, including all 
+	 2) Reset any internal audio states being tracked, including all
 	    properties of AVAudioSession
-	 3) When appropriate, reactivate the AVAudioSession instance using the 
+	 3) When appropriate, reactivate the AVAudioSession instance using the
 	    setActive:error: method
 	 We accomplish this by shutting down and reinitializing audio
 	 */
-	
+
 	if (g_Config.bEnableSound) {
-		Audio_Shutdown();
-		Audio_Init();
+		iOSCoreAudioShutdown();
+		iOSCoreAudioInit();
 	}
 }
 
 -(BOOL) application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-
-	int argc = 1;
-	char *argv[3] = { 0 };
-	NSURL* nsUrl = [launchOptions objectForKey:UIApplicationLaunchOptionsURLKey];
-
-	if (nsUrl != nullptr && nsUrl.isFileURL) {
-		NSString *nsString = nsUrl.path;
-		const char *string = nsString.UTF8String;
-		argv[argc++] = (char*)string;
+	self.launchOptions = launchOptions;
+	// Make sure SceneDelegate class is loaded
+	Class cls = objc_getClass("SceneDelegate");
+	if (!cls) {
+		NSLog(@"⚠️ SceneDelegate not found via objc_getClass");
+	} else {
+		NSLog(@"✅ SceneDelegate loaded via objc_getClass");
 	}
 
-	NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
-	NSString *bundlePath = [[[NSBundle mainBundle] resourcePath] stringByAppendingString:@"/assets/"];
-	NativeInit(argc, (const char**)argv, documentsPath.UTF8String, bundlePath.UTF8String, NULL);
+#if PPSSPP_PLATFORM(IOS_APP_STORE)
+	[IAPManager sharedIAPManager];  // Kick off the IAPManager early.
+#endif  // IOS_APP_STORE
 
-
-	self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-	self.viewController = [[ViewController alloc] init];
-	
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleAudioSessionInterruption:) name:AVAudioSessionInterruptionNotification object:[AVAudioSession sharedInstance]];
-	
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleMediaServicesWereReset:) name:AVAudioSessionMediaServicesWereResetNotification object:nil];
-	
-	self.window.rootViewController = self.viewController;
-	[self.window makeKeyAndVisible];
-	
+
 	return YES;
 }
 
--(void) dealloc {
+- (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
--(void) applicationWillResignActive:(UIApplication *)application {
-	if (g_Config.bEnableSound) {
-		Audio_Shutdown();
-	}
-	
-	NativeMessageReceived("lost_focus", "");	
-}
-
--(void) applicationDidBecomeActive:(UIApplication *)application {
-	if (g_Config.bEnableSound) {
-		Audio_Init();
-	}
-	
-	NativeMessageReceived("got_focus", "");	
-}
-
 - (void)applicationWillTerminate:(UIApplication *)application {
-	exit(0);
+}
+
+- (UIInterfaceOrientationMask)application:(UIApplication *)application supportedInterfaceOrientationsForWindow:(UIWindow *)window {
+    switch (g_Config.iScreenRotation) {
+	case ROTATION_LOCKED_HORIZONTAL: 
+		return UIInterfaceOrientationMaskLandscapeRight;
+	case ROTATION_LOCKED_VERTICAL:
+	case ROTATION_LOCKED_VERTICAL180:
+		// We do not support reverse portrait on iOS.
+		return UIInterfaceOrientationMaskPortrait;
+	case ROTATION_LOCKED_HORIZONTAL180:
+		return UIInterfaceOrientationMaskLandscapeLeft;
+	case ROTATION_AUTO_HORIZONTAL:
+		return UIInterfaceOrientationMaskLandscape;
+	case ROTATION_AUTO:
+	default:
+		return UIInterfaceOrientationMaskAll;
+	}
+
+	return UIInterfaceOrientationMaskAll; // or at least include Portrait
 }
 
 @end
