@@ -224,6 +224,14 @@ jobs:
           -DCMAKE_DISABLE_FIND_PACKAGE_SDL2_ttf=ON \
           -DCMAKE_DISABLE_FIND_PACKAGE_Fontconfig=ON
 
+    - name: Debug libnx headers
+      shell: bash
+      run: |
+        . $DEVKITPRO/switchvars.sh
+        echo "Searching for virtmem in libnx headers..."
+        grep -r "virtmem" $DEVKITPRO/libnx/include/ || echo "virtmem not found separately"
+        grep -r "Virtmem" $DEVKITPRO/libnx/include/ || echo "Virtmem not found separately"
+
     - name: Build PPSSPP for Switch
       shell: bash
       run: |
