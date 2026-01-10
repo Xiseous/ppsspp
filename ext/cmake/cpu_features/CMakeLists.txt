@@ -119,7 +119,7 @@ setup_include_and_definitions(utils)
 # library : unix_based_hardware_detection
 #
 
-if(UNIX)
+if(UNIX AND NOT USE_LIBNX)
   add_library(unix_based_hardware_detection OBJECT
     ${PROJECT_SOURCE_DIR}/../../cpu_features/include/internal/hwcaps.h
     ${PROJECT_SOURCE_DIR}/../../cpu_features/src/hwcaps.c
@@ -142,7 +142,7 @@ set (CPU_FEATURES_HDRS)
 set (CPU_FEATURES_SRCS)
 add_cpu_features_headers_and_sources(CPU_FEATURES_HDRS CPU_FEATURES_SRCS)
 list(APPEND CPU_FEATURES_SRCS $<TARGET_OBJECTS:utils>)
-if(NOT PROCESSOR_IS_X86 AND UNIX)
+if(NOT PROCESSOR_IS_X86 AND UNIX AND NOT USE_LIBNX)
   list(APPEND CPU_FEATURES_SRCS $<TARGET_OBJECTS:unix_based_hardware_detection>)
 endif()
 add_library(cpu_features ${CPU_FEATURES_HDRS} ${CPU_FEATURES_SRCS})

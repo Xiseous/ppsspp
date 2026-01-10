@@ -65,3 +65,6 @@
 [submodule "ext/nanosvg"]
 	path = ext/nanosvg
 	url = https://github.com/hrydgard/nanosvg.git
+[submodule "ext/cpu_features"]
+	path = ext/cpu_features
+	url = https://github.com/google/cpu_features.git

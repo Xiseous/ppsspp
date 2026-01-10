@@ -105,7 +105,8 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android")
 endif()
 
 # We only support Vulkan on Unix, macOS (by MoltenVK), Android and Windows.
-if(ANDROID OR WIN32 OR (UNIX AND NOT ARM_NO_VULKAN))
+# Switch uses mesa OpenGL, not Vulkan through the homebrew SDK.
+if(ANDROID OR WIN32 OR (UNIX AND NOT ARM_NO_VULKAN AND NOT USE_LIBNX))
 	set(VULKAN ON)
 endif()
 
@@ -225,7 +226,7 @@ if(WEBOS)
 	set(USE_SYSTEM_ZSTD OFF)
 endif()
 
-if(UNIX AND NOT (APPLE OR ANDROID) AND VULKAN)
+if(UNIX AND NOT (APPLE OR ANDROID OR USE_LIBNX) AND VULKAN)
 	if(USING_X11_VULKAN)
 		message("Using X11 for Vulkan")
 		find_package(X11)
@@ -3166,7 +3167,7 @@ if(MACOSX AND NOT IOS)
 	endif()
 endif()
 
-if(UNIX AND NOT ANDROID AND NOT APPLE)
+if(UNIX AND NOT ANDROID AND NOT APPLE AND NOT USE_LIBNX)
 	configure_file(
 		"${CMAKE_SOURCE_DIR}/ppsspp.desktop.in"
 		"${CMAKE_BINARY_DIR}/ppsspp.desktop"
