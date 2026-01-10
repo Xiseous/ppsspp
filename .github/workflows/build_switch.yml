@@ -37,6 +37,10 @@ jobs:
 
     - name: Apply Switch patches
       run: |
+        # Fix invalid #undef syntax in CommonTypes.h (can't undef namespace-qualified names)
+        sed -i 's/#undef KeyInputFlags::UP/\/\/ #undef KeyInputFlags::UP/' Common/CommonTypes.h
+        sed -i 's/#undef KeyInputFlags::DOWN/\/\/ #undef KeyInputFlags::DOWN/' Common/CommonTypes.h
+        
         # Disable armips for Switch (filesystem library not compatible)
         sed -i 's/add_subdirectory(armips)/if(NOT USE_LIBNX)\n\tadd_subdirectory(armips)\nendif()/' ext/CMakeLists.txt
         
