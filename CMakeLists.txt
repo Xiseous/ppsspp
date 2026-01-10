@@ -968,7 +968,7 @@ if(TARGET Ext::GLEW)
 	target_link_libraries(Common Ext::GLEW)
 endif()
 
-if(USING_GLES2 OR (USING_EGL AND NOT USING_FBDEV))
+if((USING_GLES2 OR (USING_EGL AND NOT USING_FBDEV)) AND NOT USE_LIBNX)
 	find_package(X11)
 endif()
 
