@@ -1,0 +1,143 @@
+name: Build Switch
+
+on:
+  push:
+    branches:
+    - master
+    - main
+    tags:
+      - "v*.*"
+    paths-ignore:
+    - '*.{txt,md}'
+    - 'Tools/**'
+    - '.{editorconfig,gitattributes,gitignore}'
+  pull_request:
+    branches:
+    - master
+    - main
+    paths-ignore:
+    - '*.{txt,md}'
+    - 'Tools/**'
+    - '.{editorconfig,gitattributes,gitignore}'
+  workflow_dispatch:
+
+env:
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  build-switch:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Fetch tags for version info
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git fetch --deepen=15000 --no-recurse-submodules --tags || true
+
+    - name: Install Switch dependencies
+      run: |
+        dkp-pacman -Syu --noconfirm
+        dkp-pacman -S --noconfirm --needed \
+          switch-dev \
+          switch-sdl2 \
+          switch-sdl2_ttf \
+          switch-mesa \
+          switch-glad \
+          switch-glm \
+          switch-libdrm_nouveau \
+          switch-zlib \
+          switch-bzip2 \
+          switch-libpng \
+          switch-freetype \
+          switch-libjpeg-turbo \
+          devkitA64 \
+          libnx
+
+    - name: Create git-version.cpp
+      run: |
+        GIT_VERSION=$(git describe --always --tags 2>/dev/null || echo "unknown")
+        echo "Building version: $GIT_VERSION"
+        echo "const char *PPSSPP_GIT_VERSION = \"$GIT_VERSION\";" > git-version.cpp
+        echo "#define PPSSPP_GIT_VERSION_NO_UPDATE 1" >> git-version.cpp
+
+    - name: Configure CMake for Switch
+      run: |
+        source $DEVKITPRO/switchvars.sh
+        mkdir -p build-switch
+        cd build-switch
+        cmake .. \
+          -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIGURATION }} \
+          -DUSE_LIBNX=ON \
+          -DUSING_GLES2=ON \
+          -DMOBILE_DEVICE=ON \
+          -DUSE_FFMPEG=OFF \
+          -DUSE_DISCORD=OFF \
+          -DUSE_MINIUPNPC=OFF \
+          -DHEADLESS=OFF \
+          -DUNITTEST=OFF
+
+    - name: Build PPSSPP for Switch
+      run: |
+        source $DEVKITPRO/switchvars.sh
+        cd build-switch
+        make -j$(nproc)
+
+    - name: Generate NRO file
+      run: |
+        source $DEVKITPRO/switchvars.sh
+        cd build-switch
+        # Create the .nro file from the .elf
+        if [ -f PPSSPPSDL ]; then
+          nacptool --create "PPSSPP" "PPSSPP Team" "$(git describe --always --tags 2>/dev/null || echo 'dev')" ppsspp.nacp
+          elf2nro PPSSPPSDL PPSSPPSDL.nro --icon=../icons/icon-114.png --nacp=ppsspp.nacp || \
+          elf2nro PPSSPPSDL PPSSPPSDL.nro --nacp=ppsspp.nacp || \
+          elf2nro PPSSPPSDL PPSSPPSDL.nro
+        fi
+
+    - name: Package build
+      run: |
+        mkdir -p ppsspp-switch/switch/ppsspp
+        if [ -f build-switch/PPSSPPSDL.nro ]; then
+          cp build-switch/PPSSPPSDL.nro ppsspp-switch/switch/ppsspp/PPSSPP.nro
+        elif [ -f build-switch/PPSSPPSDL ]; then
+          cp build-switch/PPSSPPSDL ppsspp-switch/switch/ppsspp/PPSSPP.nro
+        fi
+        cp -r assets ppsspp-switch/switch/ppsspp/assets
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PPSSPP-Switch-${{ github.sha }}
+        path: ppsspp-switch/
+
+    - name: Create release archive
+      if: github.ref_type == 'tag'
+      run: |
+        cd ppsspp-switch
+        zip -r ../PPSSPP-Switch-${{ github.ref_name }}.zip .
+
+    - name: Upload release
+      uses: softprops/action-gh-release@v2
+      if: github.ref_type == 'tag'
+      with:
+        files: PPSSPP-Switch-${{ github.ref_name }}.zip
+        body: |
+          PPSSPP for Nintendo Switch - ${{ github.ref_name }}
+          
+          ## Installation
+          1. Extract the archive to the root of your SD card
+          2. The folder structure should be: `/switch/ppsspp/PPSSPP.nro`
+          3. Launch via Homebrew Menu
+          
+          ## Requirements
+          - Nintendo Switch with Homebrew access
+          - Custom firmware (Atmosphere recommended)
