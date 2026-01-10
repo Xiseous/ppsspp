@@ -2518,7 +2518,10 @@ if(ANDROID)
 	endif()
 endif()
 
-set(CoreExtraLibs ${CoreExtraLibs} armips)
+# armips is disabled for Switch builds (filesystem library not compatible)
+if(NOT USE_LIBNX)
+	set(CoreExtraLibs ${CoreExtraLibs} armips)
+endif()
 
 # needed for VK_USE_PLATFORM_XCB_KHR only
 #if(VULKAN AND NOT WIN32)

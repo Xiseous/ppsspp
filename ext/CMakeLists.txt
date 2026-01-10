@@ -4,7 +4,10 @@ if(WIN32)
 	set(ARMIPS_USE_STD_FILESYSTEM ON CACHE BOOL "" FORCE)
 endif()
 
-add_subdirectory(armips)
+# Disable armips for Switch - its filesystem library doesn't support the platform
+if(NOT USE_LIBNX)
+	add_subdirectory(armips)
+endif()
 
 if(NOT USING_GLES2)
 	add_subdirectory(glew)

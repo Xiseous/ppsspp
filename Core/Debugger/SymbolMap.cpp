@@ -44,7 +44,9 @@
 #include "Core/MemMap.h"
 #include "Core/Config.h"
 #include "Core/Debugger/SymbolMap.h"
+#ifndef HAVE_LIBNX
 #include "ext/armips/Core/Assembler.h"
+#endif
 
 SymbolMap *g_symbolMap;
 
