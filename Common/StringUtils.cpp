@@ -16,6 +16,8 @@
 // http://code.google.com/p/dolphin-emu/
 
 #include "ppsspp_config.h"
+#include <cstdio>  // for vsnprintf
+#include <cstdlib> // for malloc/free
 #include <cstring>
 #include <unordered_set>
 
@@ -321,17 +323,37 @@ std::string StringFromFormat(const char *format, ...) {
   else
     temp.clear();
 #else
+  // Portable fallback for formatting into a std::string without relying on
+  // vasprintf.
   char *buf = nullptr;
 
+  // First, try to determine required size using vsnprintf with a copy of args.
+  va_list args_copy;
   va_start(args, format);
-  if (vasprintf(&buf, format, args) < 0)
-    buf = nullptr;
-  va_end(args);
+  va_copy(args_copy, args);
+  int needed = vsnprintf(nullptr, 0, format, args_copy);
+  va_end(args_copy);
 
-  if (buf != nullptr) {
-    temp = buf;
-    free(buf);
+  if (needed >= 0) {
+    // Allocate required buffer (+1 for NUL) and print into it.
+    buf = static_cast<char *>(malloc(static_cast<size_t>(needed) + 1));
+    if (buf) {
+      vsnprintf(buf, static_cast<size_t>(needed) + 1, format, args);
+      temp = buf;
+      free(buf);
+    }
+  } else {
+    // Fallback: attempt a fixed-size buffer (best-effort).
+    char fixedBuf[1024];
+    int written = vsnprintf(fixedBuf, sizeof(fixedBuf), format, args);
+    if (written >= 0 && written < (int)sizeof(fixedBuf)) {
+      temp.assign(fixedBuf, written);
+    } else {
+      // If even this fails, leave temp empty.
+      temp.clear();
+    }
   }
+  va_end(args);
 #endif
   return temp;
 }
