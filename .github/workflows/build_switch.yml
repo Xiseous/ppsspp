@@ -54,8 +54,10 @@ jobs:
     - name: Build
       run: |
         cd build-switch
+        # Use pipefail to catch build errors while piping
+        set -o pipefail
         ninja -t targets | grep "PPSSPP"
-        ninja -v PPSSPPSDL || ninja -v -j1 PPSSPPSDL
+        (ninja -v PPSSPPSDL || ninja -v -j1 PPSSPPSDL) | tee build.log
 
     - name: Create NRO
       run: |
@@ -71,6 +73,15 @@ jobs:
       if: always()
       run: |
         ls -la build-switch/ 2>/dev/null | head -30 || echo "No build directory"
+
+    - name: Upload Build Logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          build-switch/CMakeFiles/*.log
+          build-switch/build.log
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
