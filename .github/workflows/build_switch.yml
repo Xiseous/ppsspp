@@ -49,9 +49,8 @@ jobs:
           -DUSE_DISCORD=OFF \
           -DUSE_MINIUPNPC=OFF \
           -DUSE_MINIUPNPC=OFF \
-          -DHEADLESS=OFF \
-          -DMOBILE_DEVICE=ON
-          
+          -DHEADLESS=OFF
+
     - name: Build
       run: |
         cd build-switch
