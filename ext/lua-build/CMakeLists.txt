@@ -73,4 +73,8 @@ if(IOS)
 target_compile_definitions(lua PRIVATE LUA_USE_IOS)
 endif()
 
+if(SWITCH)
+target_compile_definitions(lua PRIVATE LUA_32BITS=1)
+endif()
+
 target_include_directories(lua PUBLIC ../lua-fixed)
