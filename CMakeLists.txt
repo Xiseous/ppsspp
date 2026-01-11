@@ -1682,9 +1682,15 @@ list(APPEND NativeAppSource
 	UI/Theme.cpp
 	UI/UIAtlas.h
 	UI/UIAtlas.cpp
-	UI/RetroAchievementScreens.cpp
-	UI/RetroAchievementScreens.h
 )
+
+# RetroAchievements is disabled on Switch since rcheevos is not available
+if(NOT USE_LIBNX)
+	list(APPEND NativeAppSource
+		UI/RetroAchievementScreens.cpp
+		UI/RetroAchievementScreens.h
+	)
+endif()
 
 if(ANDROID)
 	if(ARM)
