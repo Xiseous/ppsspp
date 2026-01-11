@@ -37,6 +37,9 @@ jobs:
         fi
         ls -la android/assets/ 2>/dev/null || echo "Assets directory check"
         
+    - name: Patch Lua Headers for C++ Compatibility
+      run: cp ext/lua-fixed/*.h ext/lua/
+
     - name: Configure CMake
       run: |
         . /etc/profile.d/devkit-env.sh
