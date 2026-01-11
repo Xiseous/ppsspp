@@ -73,4 +73,4 @@ if(IOS)
 target_compile_definitions(lua PRIVATE LUA_USE_IOS)
 endif()
 
-target_include_directories(lua PUBLIC ../lua)
+target_include_directories(lua PUBLIC ../lua-fixed)
