@@ -83,7 +83,7 @@ INT_PTR CALLBACK DumpMemoryWindow::dlgFunc(HWND hwnd, UINT iMsg, WPARAM wParam, 
 				bool priorDumpWasStepping = Core_IsStepping();
 				if (!priorDumpWasStepping && PSP_IsInited()) {
 					// If emulator isn't paused force paused state, but wait before locking.
-					Core_Break(BreakReason::MemoryAccess, bp->start);
+					Core_Break(CoreBreakReason::MemoryAccess, bp->start);
 					Core_WaitInactive();
 				}
 

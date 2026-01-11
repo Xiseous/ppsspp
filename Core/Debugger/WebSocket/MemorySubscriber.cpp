@@ -68,7 +68,7 @@ static AutoDisabledReplacements LockMemoryAndCPU(uint32_t addr, bool keepReplace
 		while (state != CoreState::CORE_RUNNING_CPU) {
 			state = coreState;
 		}
-		Core_Break(BreakReason::MemoryAccess, addr);
+		Core_Break(CoreBreakReason::MemoryAccess, addr);
 		Core_WaitInactive();
 	}
 

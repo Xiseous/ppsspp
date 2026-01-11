@@ -300,7 +300,7 @@ BOOL CDisasm::DlgProc(UINT message, WPARAM wParam, LPARAM lParam) {
 					view->LockPosition();
 					bool isRunning = Core_IsActive();
 					if (isRunning) {
-						Core_Break(BreakReason::AddBreakpoint, 0);
+						Core_Break(CoreBreakReason::AddBreakpoint, 0);
 						Core_WaitInactive();
 					}
 
@@ -400,7 +400,7 @@ BOOL CDisasm::DlgProc(UINT message, WPARAM wParam, LPARAM lParam) {
 					}
 					if (!Core_IsStepping())	{  // stop
 						ptr->setDontRedraw(false);
-						Core_Break(BreakReason::DebugBreak, 0);
+						Core_Break(CoreBreakReason::DebugBreak, 0);
 					} else {					// go
 						lastTicks_ = CoreTiming::GetTicks();
 						Core_Resume();

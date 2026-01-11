@@ -90,7 +90,7 @@ void WebSocketSteppingState::Into(DebuggerRequest &req) {
 	if (!currentDebugMIPS->isAlive())
 		return req.Fail("CPU not started");
 	if (!Core_IsStepping()) {
-		Core_Break(BreakReason::DebugStepInto, 0);
+		Core_Break(CoreBreakReason::DebugStepInto, 0);
 		return;
 	}
 

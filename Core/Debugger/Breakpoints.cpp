@@ -64,7 +64,7 @@ BreakAction MemCheck::Action(u32 addr, bool write, int size, u32 pc, const char 
 	// Conditions have always already been checked if we get here.
 	Log(addr, write, size, pc, reason);
 	if (result & BREAK_ACTION_PAUSE) {
-		Core_Break(BreakReason::MemoryBreakpoint, start);
+		Core_Break(CoreBreakReason::MemoryBreakpoint, start);
 	}
 	return result;
 }
@@ -291,7 +291,7 @@ BreakAction BreakpointManager::ExecBreakPoint(u32 addr) {
 			}
 		}
 		if (info.result & BREAK_ACTION_PAUSE) {
-			Core_Break(BreakReason::CpuBreakpoint, info.addr);
+			Core_Break(CoreBreakReason::CpuBreakpoint, info.addr);
 		}
 
 		return info.result;

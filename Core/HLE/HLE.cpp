@@ -530,7 +530,7 @@ static bool hleExecuteDebugBreak(const HLEFunction *func) {
 	}
 
 	INFO_LOG(Log::CPU, "Broke after syscall: %s", func->name);
-	Core_Break(BreakReason::HLEDebugBreak, g_syscallPC);
+	Core_Break(CoreBreakReason::HLEDebugBreak, g_syscallPC);
 	return true;
 }
 

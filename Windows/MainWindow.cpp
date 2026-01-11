@@ -796,8 +796,8 @@ namespace MainWindow
 							SendMessage(disasmWindow->GetDlgHandle(), WM_COMMAND, IDC_STOPGO, 0);
 						} else {
 							if (pause) {
-								Core_Break(BreakReason::UIFocus, 0);
-							} else if (Core_BreakReason() == BreakReason::UIFocus) {
+								Core_Break(CoreBreakReason::UIFocus, 0);
+							} else if (Core_CoreBreakReason() == CoreBreakReason::UIFocus) {
 								Core_Resume();
 							}
 						}

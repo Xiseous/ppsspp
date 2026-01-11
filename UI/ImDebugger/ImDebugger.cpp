@@ -2351,7 +2351,7 @@ void ImDebugger::Frame(MIPSDebugInterface *mipsDebug, GPUDebugInterface *gpuDebu
 				break;
 			case CoreState::CORE_RUNNING_CPU:
 				if (ImGui::MenuItem("Break")) {
-					Core_Break(BreakReason::DebugBreak);
+					Core_Break(CoreBreakReason::DebugBreak);
 				}
 				break;
 			default:
@@ -2517,7 +2517,7 @@ void ImDebugger::Frame(MIPSDebugInterface *mipsDebug, GPUDebugInterface *gpuDebu
 			break;
 		case CoreState::CORE_RUNNING_CPU:
 			if (ImGui::MenuItem("|| Break")) {
-				Core_Break(BreakReason::DebugBreak);
+				Core_Break(CoreBreakReason::DebugBreak);
 			}
 			break;
 		default:

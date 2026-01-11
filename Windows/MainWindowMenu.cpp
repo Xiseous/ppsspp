@@ -371,7 +371,7 @@ namespace MainWindow {
 		if (GetUIState() == UISTATE_INGAME) {
 			browsePauseAfter = Core_IsStepping();
 			if (!browsePauseAfter)
-				Core_Break(BreakReason::BreakOnBoot, 0);
+				Core_Break(CoreBreakReason::BreakOnBoot, 0);
 		}
 		auto mm = GetI18NCategory(I18NCat::MAINMENU);
 
@@ -509,7 +509,7 @@ namespace MainWindow {
 				if (disasmWindow)
 					SendMessage(disasmWindow->GetDlgHandle(), WM_COMMAND, IDC_STOPGO, 0);
 				else
-					Core_Break(BreakReason::DebugBreak, 0);
+					Core_Break(CoreBreakReason::DebugBreak, 0);
 			}
 			noFocusPause = !noFocusPause;	// If we pause, override pause on lost focus
 			break;

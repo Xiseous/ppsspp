@@ -653,7 +653,7 @@ raintegration_event_handler(const rc_client_raintegration_event_t *event,
     break;
   case RC_CLIENT_RAINTEGRATION_EVENT_PAUSE:
     // The toolkit has hit a breakpoint and wants to pause the emulator. Do so.
-    Core_Break(BreakReason::RABreak);
+    Core_Break(CoreBreakReason::RABreak);
     break;
   case RC_CLIENT_RAINTEGRATION_EVENT_HARDCORE_CHANGED:
     // Hardcore mode has been changed (either directly by the user, or disabled

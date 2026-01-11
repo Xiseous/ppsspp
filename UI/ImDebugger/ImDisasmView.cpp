@@ -1197,7 +1197,7 @@ void ImDisasmWindow::Draw(MIPSDebugInterface *mipsDebug, ImConfig &cfg, ImContro
 	ImGui::SameLine();
 	ImGui::BeginDisabled(coreState != CORE_RUNNING_CPU);
 	if (ImGui::SmallButton("Pause")) {
-		Core_Break(BreakReason::DebugBreak);
+		Core_Break(CoreBreakReason::DebugBreak);
 	}
 	ImGui::EndDisabled();
 
@@ -1296,9 +1296,9 @@ void ImDisasmWindow::Draw(MIPSDebugInterface *mipsDebug, ImConfig &cfg, ImContro
 		disasmView_.scrollAddressIntoView();
 	}
 
-	BreakReason breakReason = Core_BreakReason();
+	CoreBreakReason breakReason = Core_CoreBreakReason();
 	ImGui::SameLine();
-	ImGui::TextUnformatted(BreakReasonToString(breakReason));
+	ImGui::TextUnformatted(CoreBreakReasonToString(breakReason));
 
 	ImVec2 avail = ImGui::GetContentRegionAvail();
 	avail.y -= ImGui::GetTextLineHeightWithSpacing();

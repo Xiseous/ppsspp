@@ -45,12 +45,12 @@ typedef signed __int64 s64;
 #define Framebuffer _Framebuffer
 #define Waitable _Waitable
 #define ThreadContext _ThreadContext
-#define BreakReason SwitchBreakReason
+#define CoreBreakReason SwitchCoreBreakReason
 #include <switch.h>
 // Cleanup
 #undef UP
 #undef DOWN
-#undef BreakReason
+#undef CoreBreakReason
 #undef Event
 #undef Framebuffer
 #undef Waitable

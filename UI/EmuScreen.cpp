@@ -117,7 +117,7 @@ extern bool g_TakeScreenshot;
 
 static void AssertCancelCallback(const char *message, void *userdata) {
 	NOTICE_LOG(Log::CPU, "Broke after assert: %s", message);
-	Core_Break(BreakReason::AssertChoice);
+	Core_Break(CoreBreakReason::AssertChoice);
 	g_Config.bShowImDebugger = true;
 
 	EmuScreen *emuScreen = (EmuScreen *)userdata;
@@ -989,7 +989,7 @@ void EmuScreen::ProcessVKey(VirtKey virtKey) {
 			if (coreState == CORE_STEPPING_CPU) {  // should we check reason?
 				Core_Resume();
 			} else {
-				Core_Break(BreakReason::UIPause);
+				Core_Break(CoreBreakReason::UIPause);
 			}
 		}
 		break;
@@ -1023,7 +1023,7 @@ void EmuScreen::ProcessVKey(VirtKey virtKey) {
 				Core_Resume();
 				frameStep_ = true;
 			} else {
-				Core_Break(BreakReason::FrameAdvance);
+				Core_Break(CoreBreakReason::FrameAdvance);
 			}
 		}
 		break;
@@ -1788,7 +1788,7 @@ ScreenRenderFlags EmuScreen::render(ScreenRenderMode mode) {
 	if (frameStep_) {
 		frameStep_ = false;
 		if (coreState == CORE_RUNNING_CPU) {
-			Core_Break(BreakReason::FrameAdvance, 0);
+			Core_Break(CoreBreakReason::FrameAdvance, 0);
 		}
 	}
 
