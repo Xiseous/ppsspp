@@ -2610,7 +2610,7 @@ if(NOT USE_LIBNX)
 endif()
 
 if(USE_LIBNX)
-	target_link_libraries(${CoreLibName} Common native kirk cityhash sfmt19937 xbrz xxhash minimp3 at3_standalone
+	target_link_libraries(${CoreLibName} Common native kirk cityhash sfmt19937 xbrz xxhash minimp3 at3_standalone ${GlslangLibs}
 		${CoreExtraLibs} ${OPENGL_LIBRARIES} ${X11_LIBRARIES})
 else()
 	target_link_libraries(${CoreLibName} Common native chdr kirk cityhash sfmt19937 xbrz xxhash rcheevos minimp3 at3_standalone lua ${GlslangLibs}
