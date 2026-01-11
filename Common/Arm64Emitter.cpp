@@ -23,6 +23,8 @@
 #include <libkern/OSCacheControl.h>
 #endif
 
+using namespace Arm64Gen;
+
 namespace Arm64Gen {
 
 const int kWRegSizeInBits = 32;
@@ -3677,8 +3679,6 @@ void ARM64FloatEmitter::ABI_PushRegisters(uint32_t registers,
   }
   // Now offset should be == stack_size.
 }
-
-namespace Arm64Gen {
 
 void ARM64FloatEmitter::ABI_PopRegisters(uint32_t registers,
                                          uint32_t fp_registers) {
