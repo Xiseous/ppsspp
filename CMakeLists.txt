@@ -2559,10 +2559,11 @@ set(CoreSources ${CoreSources}
 	ext/disarm.h
 	ext/riscv-disas.cpp
 	ext/riscv-disas.h
-	ext/loongarch-disasm.cpp
 	ext/loongarch-disasm.h
 	${CMAKE_CURRENT_BINARY_DIR}/git-version.cpp
 )
+
+target_sources(${CoreLibName} PRIVATE ${CoreSources})
 
 if(ANDROID)
 	set(CoreExtraLibs ${CoreExtraLibs} android)
