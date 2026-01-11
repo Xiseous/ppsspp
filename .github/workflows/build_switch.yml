@@ -40,6 +40,11 @@ jobs:
     - name: Patch Lua Headers for C++ Compatibility
       run: cp ext/lua-fixed/*.h ext/lua/
 
+    - name: Patch Freetype to skip libdl on Switch
+      run: |
+        # Patch freetype CMakeLists.txt to add USE_LIBNX check around dl linking
+        sed -i 's/if (FT_DYNAMIC_HARFBUZZ_ENABLED AND FT_NEED_LIBDL)/if (FT_DYNAMIC_HARFBUZZ_ENABLED AND FT_NEED_LIBDL AND NOT USE_LIBNX)/' ext/freetype/CMakeLists.txt
+
     - name: Configure CMake
       run: |
         . /etc/profile.d/devkit-env.sh
