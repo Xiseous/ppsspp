@@ -1109,6 +1109,7 @@ DataType SymbolMap::GetDataType(u32 startAddress) {
   return it->second.type;
 }
 
+#if !defined(__SWITCH__)
 void SymbolMap::GetLabels(std::vector<LabelDefinition> &dest) {
   if (activeNeedUpdate_)
     UpdateActiveSymbols();
@@ -1123,6 +1124,7 @@ void SymbolMap::GetLabels(std::vector<LabelDefinition> &dest) {
     dest.push_back(entry);
   }
 }
+#endif
 
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
 
