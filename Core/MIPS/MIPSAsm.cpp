@@ -3,8 +3,7 @@
 
 #include "ppsspp_config.h"
 
-#if !defined(__SWITCH__)
-#ifndef HAVE_LIBNX
+#if !defined(__SWITCH__) && !defined(HAVE_LIBNX)
 
 #include <cstdarg>
 #include <cstring>
@@ -92,7 +91,7 @@ bool MipsAssembleOpcode(std::string_view line, DebugInterface *cpu, u32 address,
 
 #else
 
-// Stub implementation for Switch - assembler not available
+// Stub implementation for Switch/libnx - assembler not available
 #include "Common/CommonTypes.h"
 #include <string>
 #include <string_view>
@@ -107,4 +106,4 @@ bool MipsAssembleOpcode(std::string_view line, DebugInterface *cpu, u32 address,
   return false;
 }
 
-#endif // !defined(__SWITCH__)
+#endif // !defined(__SWITCH__) && !defined(HAVE_LIBNX)
