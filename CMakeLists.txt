@@ -648,22 +648,24 @@ if(WIN32)
 	)
 endif()
 
-set(CommonVR
-	Common/VR/OpenXRLoader.cpp
-	Common/VR/OpenXRLoader.h
-	Common/VR/PPSSPPVR.cpp
-	Common/VR/PPSSPPVR.h
-	Common/VR/VRBase.cpp
-	Common/VR/VRBase.h
-	Common/VR/VRFramebuffer.cpp
-	Common/VR/VRFramebuffer.h
-	Common/VR/VRInput.cpp
-	Common/VR/VRInput.h
-	Common/VR/VRMath.cpp
-	Common/VR/VRMath.h
-	Common/VR/VRRenderer.cpp
-	Common/VR/VRRenderer.h
-)
+if(OPENXR)
+	set(CommonVR
+		Common/VR/OpenXRLoader.cpp
+		Common/VR/OpenXRLoader.h
+		Common/VR/PPSSPPVR.cpp
+		Common/VR/PPSSPPVR.h
+		Common/VR/VRBase.cpp
+		Common/VR/VRBase.h
+		Common/VR/VRFramebuffer.cpp
+		Common/VR/VRFramebuffer.h
+		Common/VR/VRInput.cpp
+		Common/VR/VRInput.h
+		Common/VR/VRMath.cpp
+		Common/VR/VRMath.h
+		Common/VR/VRRenderer.cpp
+		Common/VR/VRRenderer.h
+	)
+endif()
 include_directories(ext/OpenXR-SDK/include)
 
 # For ext/sol includes, that are usually included as sol/*.hpp
