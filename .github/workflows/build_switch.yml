@@ -52,11 +52,12 @@ jobs:
           -DHEADLESS=OFF
 
     - name: Build
+      shell: bash
       run: |
         cd build-switch
         # Use pipefail to catch build errors while piping
         set -o pipefail
-        ninja -t targets | grep "PPSSPP"
+        ninja -t targets | grep "PPSSPP" || true
         (ninja -v PPSSPPSDL || ninja -v -j1 PPSSPPSDL) | tee build.log
 
     - name: Create NRO
