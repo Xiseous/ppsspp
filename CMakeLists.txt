@@ -2131,8 +2131,17 @@ add_library(${CoreLibName} ${CoreLinkType}
 	Core/KeyMap.h
 	Core/KeyMapDefaults.cpp
 	Core/KeyMapDefaults.h
-	Core/LuaContext.cpp
-	Core/LuaContext.h
+)
+
+# Lua scripting is disabled on Switch due to sol.hpp/Lua header C++ linkage issues
+if(NOT USE_LIBNX)
+	list(APPEND CoreSources
+		Core/LuaContext.cpp
+		Core/LuaContext.h
+	)
+endif()
+
+set(CoreSources ${CoreSources}
 	Core/RetroAchievements.h
 	Core/RetroAchievements.cpp
 	Core/TiltEventProcessor.h
@@ -2584,7 +2593,7 @@ if(NOT USE_LIBNX)
 endif()
 
 if(USE_LIBNX)
-	target_link_libraries(${CoreLibName} Common native kirk cityhash sfmt19937 xbrz xxhash minimp3 at3_standalone lua
+	target_link_libraries(${CoreLibName} Common native kirk cityhash sfmt19937 xbrz xxhash minimp3 at3_standalone
 		${CoreExtraLibs} ${OPENGL_LIBRARIES} ${X11_LIBRARIES} ${CMAKE_DL_LIBS})
 else()
 	target_link_libraries(${CoreLibName} Common native chdr kirk cityhash sfmt19937 xbrz xxhash rcheevos minimp3 at3_standalone lua ${GlslangLibs}
