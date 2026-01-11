@@ -23,8 +23,9 @@
 #include <libkern/OSCacheControl.h>
 #endif
 
-namespace Arm64Gen {
 using namespace ::Arm64Gen;
+
+namespace Arm64Gen {
 
 const int kWRegSizeInBits = 32;
 const int kXRegSizeInBits = 64;
