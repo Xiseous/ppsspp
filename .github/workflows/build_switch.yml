@@ -58,8 +58,10 @@ jobs:
     - name: Create NRO
       run: |
         . /etc/profile.d/devkit-env.sh
+        cd build-switch
+        ls -la
         nacptool --create "PPSSPP" "PPSSPP Team" "1.19.3" ppsspp.nacp
-        elf2nro build-switch/PPSSPPSDL build-switch/PPSSPP.nro --nacp=ppsspp.nacp --icon=icons/icon-114.png
+        elf2nro PPSSPPSDL PPSSPP.nro --nacp=ppsspp.nacp --icon=../icons/icon-114.png
 
     - name: List build outputs
       if: always()
