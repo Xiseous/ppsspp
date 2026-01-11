@@ -781,8 +781,14 @@ add_library(Common STATIC
 	Common/GPU/OpenGL/GLDebugLog.h
 	Common/GPU/OpenGL/GLSLProgram.cpp
 	Common/GPU/OpenGL/GLSLProgram.h
-	Common/GPU/OpenGL/gl3stub.c
-	Common/GPU/OpenGL/gl3stub.h
+)
+if(NOT USE_LIBNX)
+	list(APPEND NativeAppSource
+		Common/GPU/OpenGL/gl3stub.c
+		Common/GPU/OpenGL/gl3stub.h
+	)
+endif()
+list(APPEND NativeAppSource
 	Common/GPU/OpenGL/GLFeatures.cpp
 	Common/GPU/OpenGL/GLFeatures.h
 	Common/GPU/OpenGL/GLFrameData.cpp
