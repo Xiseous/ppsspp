@@ -273,8 +273,8 @@ typedef struct luaL_Stream {
 #endif
 /* }============================================================ */
 
-#endif
-
 #ifdef __cplusplus
 }
+#endif
+
 #endif
