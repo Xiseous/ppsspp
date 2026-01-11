@@ -1527,6 +1527,7 @@ void GameSettingsScreen::CreateToolsSettings(UI::ViewGroup *tools) {
 
   tools->Add(new ItemHeader(ms->T("Tools")));
 
+#if !PPSSPP_PLATFORM(SWITCH)
   const bool showRetroAchievements =
       System_GetPropertyInt(SYSPROP_DEVICE_TYPE) != DEVICE_TYPE_VR;
   if (showRetroAchievements) {
@@ -1536,6 +1537,7 @@ void GameSettingsScreen::CreateToolsSettings(UI::ViewGroup *tools) {
     });
     retro->SetIconRight(ImageID("I_RETROACHIEVEMENTS_LOGO"));
   }
+#endif
 
   // These were moved here so use the wrong translation objects, to avoid having
   // to change all inis... This isn't a sustainable situation :P
@@ -2057,9 +2059,9 @@ void GameSettingsScreen::OnAutoFrameskip(UI::EventParams &e) {
 
 void GameSettingsScreen::OnAdhocGuides(UI::EventParams &e) {
   auto n = GetI18NCategory(I18NCat::NETWORKING);
-  std::string url(
-      n->T("MultiplayerHowToURL", "https://github.com/hrydgard/ppsspp/wiki/"
-                                  "How-to-play-multiplayer-games-with-PPSSPP"));
+  std::string url(n->T("MultiplayerHowToURL",
+                       "https://github.com/hrydgard/ppsspp/wiki/"
+                       "How-to-play-multiplayer-games-with-PPSSPP"));
   System_LaunchUrl(LaunchUrlType::BROWSER_URL, url.c_str());
 }
 
