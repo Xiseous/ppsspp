@@ -670,6 +670,7 @@ include_directories(ext/OpenXR-SDK/include)
 
 # For ext/sol includes, that are usually included as sol/*.hpp
 include_directories(ext)
+include_directories(ext/lua)
 
 add_library(Common STATIC
 	${CommonX86}
