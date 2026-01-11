@@ -535,6 +535,7 @@ void GamePauseScreen::CreateViews() {
   saveStateScroll->Add(saveDataScrollItems);
 
   saveDataScrollItems->SetSpacing(5.0f);
+#if !PPSSPP_PLATFORM(SWITCH)
   if (Achievements::IsActive()) {
     saveDataScrollItems->Add(new GameAchievementSummaryView());
 
@@ -546,6 +547,7 @@ void GamePauseScreen::CreateViews() {
                        new UI::LinearLayoutParams(Margins(5, 5))));
     }
   }
+#endif
 
   if (IsNetworkConnected()) {
     saveDataScrollItems->Add(
@@ -625,6 +627,7 @@ void GamePauseScreen::CreateViews() {
     CreateSavestateControls(saveDataScrollItems);
   } else {
     // Let's show the active challenges.
+#if !PPSSPP_PLATFORM(SWITCH)
     std::set<uint32_t> ids = Achievements::GetActiveChallengeIDs();
     if (!ids.empty()) {
       saveDataScrollItems->Add(new ItemHeader(ac->T("Active Challenges")));
@@ -636,6 +639,7 @@ void GamePauseScreen::CreateViews() {
         saveDataScrollItems->Add(new AchievementView(achievement));
       }
     }
+#endif
 
     // And tack on an explanation for why savestate options are not available.
     if (!achievementsAllowSavestates) {
@@ -711,6 +715,7 @@ void GamePauseScreen::CreateViews() {
     createGameConfig->SetEnabled(!bootPending_);
   }
 
+#if !PPSSPP_PLATFORM(SWITCH)
   if (g_Config.bAchievementsEnable &&
       Achievements::HasAchievementsOrLeaderboards()) {
     rightColumnItems
@@ -719,6 +724,7 @@ void GamePauseScreen::CreateViews() {
           screenManager()->push(new RetroAchievementsListScreen(gamePath_));
         });
   }
+#endif
 
   rightColumnItems
       ->Add(new Choice(gr->T("Display layout & effects"), ImageID("I_DISPLAY")))
