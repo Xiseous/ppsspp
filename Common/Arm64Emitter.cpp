@@ -20,10 +20,7 @@
 #include "Common/Math/math_util.h"
 
 #if PPSSPP_PLATFORM(IOS) || PPSSPP_PLATFORM(MAC)
-#include <libkern/OSCacheControl.h>
 #endif
-
-using namespace Arm64Gen;
 
 namespace Arm64Gen {
 
@@ -3947,7 +3944,7 @@ bool FPImm8FromFloat(float value, uint8_t *immOut) {
     return false;
   uint8_t imm8 = (sign << 7) | ((!(exponent >> 7)) << 6) |
                  ((exponent & 3) << 4) | mantissa4;
-  float newFloat = FPImm8ToFloat(imm8);
+  float newFloat = Arm64Gen::FPImm8ToFloat(imm8);
   if (newFloat == value) {
     *immOut = imm8;
     return true;
