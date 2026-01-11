@@ -48,7 +48,9 @@ jobs:
           -DUSE_FFMPEG=OFF \
           -DUSE_DISCORD=OFF \
           -DUSE_MINIUPNPC=OFF \
-          -DHEADLESS=OFF
+          -DUSE_MINIUPNPC=OFF \
+          -DHEADLESS=OFF \
+          -DMOBILE_DEVICE=ON
           
     - name: Build
       run: |
@@ -60,6 +62,7 @@ jobs:
         . /etc/profile.d/devkit-env.sh
         cd build-switch
         ls -la
+        find . -name "PPSSPP*"
         nacptool --create "PPSSPP" "PPSSPP Team" "1.19.3" ppsspp.nacp
         elf2nro PPSSPPSDL PPSSPP.nro --nacp=ppsspp.nacp --icon=../icons/icon-114.png
 
