@@ -328,14 +328,16 @@ endif()
 
 if(NOT LIBRETRO AND NOT IOS AND NOT MACOSX)
 	find_package(SDL2)
-	find_package(SDL2_ttf)
-	find_package(Fontconfig)
+	if(NOT USE_LIBNX)
+		find_package(SDL2_ttf)
+		find_package(Fontconfig)
 
-	# TODO: this can be removed once CI supports newer SDL2_ttf
-	if (NOT SDL2_ttf_FOUND)
-		find_package(PkgConfig)
-		if(PkgConfig_FOUND)
-			pkg_check_modules(SDL2_ttf_PKGCONFIG IMPORTED_TARGET SDL2_ttf)
+		# TODO: this can be removed once CI supports newer SDL2_ttf
+		if (NOT SDL2_ttf_FOUND)
+			find_package(PkgConfig)
+			if(PkgConfig_FOUND)
+				pkg_check_modules(SDL2_ttf_PKGCONFIG IMPORTED_TARGET SDL2_ttf)
+			endif()
 		endif()
 	endif()
 endif()
