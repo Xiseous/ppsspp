@@ -3678,6 +3678,8 @@ void ARM64FloatEmitter::ABI_PushRegisters(uint32_t registers,
   // Now offset should be == stack_size.
 }
 
+namespace Arm64Gen {
+
 void ARM64FloatEmitter::ABI_PopRegisters(uint32_t registers,
                                          uint32_t fp_registers) {
   ARM64Reg gprs[32]{}, fprs[32]{};
