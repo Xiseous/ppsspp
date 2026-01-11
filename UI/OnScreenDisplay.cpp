@@ -141,6 +141,7 @@ static void MeasureOSDEntry(const UIContext &dc,
                             const OnScreenDisplay::Entry &entry, int align,
                             float maxWidth, float *width, float *height,
                             float *height1) {
+#if !PPSSPP_PLATFORM(SWITCH)
   if (entry.type == OSDType::ACHIEVEMENT_UNLOCKED) {
     const rc_client_achievement_t *achievement = rc_client_get_achievement_info(
         Achievements::GetClient(), entry.numericID);
@@ -148,7 +149,9 @@ static void MeasureOSDEntry(const UIContext &dc,
                        height);
     *width = std::min(maxWidth, 550.0f);
     *height1 = *height;
-  } else {
+  } else
+#endif
+  {
     MeasureNotice(dc, GetNoticeLevel(entry.type), entry.text, entry.text2,
                   entry.iconName, align, maxWidth, width, height, height1);
   }
@@ -244,6 +247,7 @@ static void RenderNotice(UIContext &dc, Bounds bounds, float height1,
 static void RenderOSDEntry(UIContext &dc, const OnScreenDisplay::Entry &entry,
                            Bounds bounds, float height1, int align, float alpha,
                            float now) {
+#if !PPSSPP_PLATFORM(SWITCH)
   if (entry.type == OSDType::ACHIEVEMENT_UNLOCKED) {
     const rc_client_achievement_t *achievement = rc_client_get_achievement_info(
         Achievements::GetClient(), entry.numericID);
@@ -252,7 +256,9 @@ static void RenderOSDEntry(UIContext &dc, const OnScreenDisplay::Entry &entry,
                         bounds, alpha, entry.startTime, time_now_d(), false);
     }
     return;
-  } else {
+  } else
+#endif
+  {
     RenderNotice(dc, bounds, height1, GetNoticeLevel(entry.type), entry.text,
                  entry.text2, entry.iconName, align, alpha, entry.flags,
                  now - entry.startTime);
@@ -350,7 +356,9 @@ void OnScreenMessagesView::Draw(UIContext &dc) {
     float alpha;
     int align;
     int align2;
+#if !PPSSPP_PLATFORM(SWITCH)
     AchievementRenderStyle style;
+#endif
   };
 
   // Grab all the entries. Makes a copy so we can release the lock ASAP.
@@ -431,6 +439,7 @@ void OnScreenMessagesView::Draw(UIContext &dc) {
     }
 
     switch (entry.type) {
+#if !PPSSPP_PLATFORM(SWITCH)
     case OSDType::ACHIEVEMENT_PROGRESS: {
       const rc_client_achievement_t *achievement =
           rc_client_get_achievement_info(Achievements::GetClient(),
@@ -453,11 +462,13 @@ void OnScreenMessagesView::Draw(UIContext &dc) {
                          &measuredEntry.h);
       break;
     }
+#endif
     case OSDType::LEADERBOARD_TRACKER: {
       MeasureLeaderboardTracker(dc, entry.text, &measuredEntry.w,
                                 &measuredEntry.h);
       break;
     }
+#if !PPSSPP_PLATFORM(SWITCH)
     case OSDType::ACHIEVEMENT_UNLOCKED: {
       const rc_client_achievement_t *achievement =
           rc_client_get_achievement_info(Achievements::GetClient(),
@@ -471,6 +482,7 @@ void OnScreenMessagesView::Draw(UIContext &dc) {
       measuredEntry.w = std::min(bounds_.w, 550.0f);
       break;
     }
+#endif
     case OSDType::PROGRESS_BAR: {
       measuredEntry.h = 36;
       measuredEntry.w = std::min(450.0f, bounds_.w - 50.0f);
@@ -568,6 +580,7 @@ void OnScreenMessagesView::Draw(UIContext &dc) {
       }
 
       switch (entry.type) {
+#if !PPSSPP_PLATFORM(SWITCH)
       case OSDType::ACHIEVEMENT_PROGRESS:
       case OSDType::ACHIEVEMENT_CHALLENGE_INDICATOR: {
         const rc_client_achievement_t *achievement =
@@ -579,6 +592,7 @@ void OnScreenMessagesView::Draw(UIContext &dc) {
         }
         break;
       }
+#endif
       case OSDType::LEADERBOARD_TRACKER:
         RenderLeaderboardTracker(dc, b, entry.text, alpha);
         break;
