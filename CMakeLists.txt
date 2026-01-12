@@ -248,6 +248,8 @@ if(USE_LIBNX)
 	set(UNIX ON CACHE BOOL "Enable Unix mode for Switch" FORCE)
 	# Set OpenGL library order for Switch static linking (dependencies must come AFTER)
 	set(OPENGL_LIBRARIES GLESv2 EGL glapi drm_nouveau)
+	# Ensure bundled libpng17 headers are found before system libpng headers
+	include_directories(BEFORE ext/libpng17)
 endif()
 
 if(UNIX AND NOT (APPLE OR ANDROID OR USE_LIBNX) AND VULKAN)
