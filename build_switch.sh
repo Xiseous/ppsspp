@@ -123,17 +123,17 @@ make -j"$JOBS"
 
 # Create NRO
 echo -e "${YELLOW}Creating NRO file...${NC}"
-if [ -f PPSSPPSDL ]; then
+if [ -f PPSSPPSDL.elf ]; then
     nacptool --create "PPSSPP" "PPSSPP Team" "$GIT_VERSION" ppsspp.nacp 2>/dev/null || true
     
     # Try with icon first, fall back without
     if [ -f ../icons/icon-114.png ]; then
-        elf2nro PPSSPPSDL PPSSPPSDL.nro --icon=../icons/icon-114.png --nacp=ppsspp.nacp 2>/dev/null || \
-        elf2nro PPSSPPSDL PPSSPPSDL.nro --nacp=ppsspp.nacp 2>/dev/null || \
-        elf2nro PPSSPPSDL PPSSPPSDL.nro
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --icon=../icons/icon-114.png --nacp=ppsspp.nacp 2>/dev/null || \
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --nacp=ppsspp.nacp 2>/dev/null || \
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro
     else
-        elf2nro PPSSPPSDL PPSSPPSDL.nro --nacp=ppsspp.nacp 2>/dev/null || \
-        elf2nro PPSSPPSDL PPSSPPSDL.nro
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --nacp=ppsspp.nacp 2>/dev/null || \
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro
     fi
     
     if [ -f PPSSPPSDL.nro ]; then
@@ -142,7 +142,7 @@ if [ -f PPSSPPSDL ]; then
         echo -e "${YELLOW}Note: NRO creation may have issues, but ELF was built${NC}"
     fi
 else
-    echo -e "${RED}Error: PPSSPPSDL executable not found${NC}"
+    echo -e "${RED}Error: PPSSPPSDL.elf executable not found${NC}"
     exit 1
 fi
 
@@ -154,8 +154,8 @@ mkdir -p "$OUTPUT_DIR/switch/ppsspp"
 
 if [ -f PPSSPPSDL.nro ]; then
     cp PPSSPPSDL.nro "$OUTPUT_DIR/switch/ppsspp/PPSSPP.nro"
-elif [ -f PPSSPPSDL ]; then
-    cp PPSSPPSDL "$OUTPUT_DIR/switch/ppsspp/PPSSPP.nro"
+elif [ -f PPSSPPSDL.elf ]; then
+    cp PPSSPPSDL.elf "$OUTPUT_DIR/switch/ppsspp/PPSSPP.nro"
 fi
 
 cp -r ../assets "$OUTPUT_DIR/switch/ppsspp/"
