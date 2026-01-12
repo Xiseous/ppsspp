@@ -672,6 +672,12 @@ if(OPENXR)
 		Common/VR/VRRenderer.cpp
 		Common/VR/VRRenderer.h
 	)
+else()
+	# Stub implementations for platforms without VR support
+	set(CommonVR
+		Common/VR/VRStubs.cpp
+		Common/VR/PPSSPPVR.h
+	)
 endif()
 include_directories(ext/OpenXR-SDK/include)
 
