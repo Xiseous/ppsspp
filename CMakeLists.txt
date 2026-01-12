@@ -244,6 +244,8 @@ if(USE_LIBNX)
 	# Disable HarfBuzz in freetype to avoid linking libdl
 	set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable HarfBuzz for Switch" FORCE)
 	set(FT_DYNAMIC_HARFBUZZ OFF CACHE BOOL "Disable dynamic HarfBuzz for Switch" FORCE)
+	# Set UNIX for glslang OSDependent to use Unix implementation
+	set(UNIX ON CACHE BOOL "Enable Unix mode for Switch" FORCE)
 	# Set OpenGL library order for Switch static linking (dependencies must come AFTER)
 	set(OPENGL_LIBRARIES GLESv2 EGL glapi drm_nouveau)
 endif()
