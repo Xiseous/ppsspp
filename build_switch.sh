@@ -124,15 +124,15 @@ make -j"$JOBS"
 # Create NRO
 echo -e "${YELLOW}Creating NRO file...${NC}"
 if [ -f PPSSPPSDL.elf ]; then
-    nacptool --create "PPSSPP" "PPSSPP Team" "$GIT_VERSION" ppsspp.nacp 2>/dev/null || true
+    nacptool --create "PPSSPP" "PPSSPP Team" "$GIT_VERSION" ppsspp.nacp || true
     
     # Try with icon first, fall back without
     if [ -f ../icons/icon-114.png ]; then
-        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --icon=../icons/icon-114.png --nacp=ppsspp.nacp 2>/dev/null || \
-        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --nacp=ppsspp.nacp 2>/dev/null || \
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --icon=../icons/icon-114.png --nacp=ppsspp.nacp || \
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --nacp=ppsspp.nacp || \
         elf2nro PPSSPPSDL.elf PPSSPPSDL.nro
     else
-        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --nacp=ppsspp.nacp 2>/dev/null || \
+        elf2nro PPSSPPSDL.elf PPSSPPSDL.nro --nacp=ppsspp.nacp || \
         elf2nro PPSSPPSDL.elf PPSSPPSDL.nro
     fi
     
