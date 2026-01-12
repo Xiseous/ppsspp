@@ -33,14 +33,35 @@ PFNGLISVERTEXARRAYOESPROC glIsVertexArrayOES;
 #endif
 #if !PPSSPP_PLATFORM(IOS)
 #include "EGL/egl.h"
-// Define glCopyImageSubDataOES for non-Android GLES2 platforms (e.g. Switch)
-// This function pointer is declared in gl3stub.h
+// Define GL function pointers for non-Android GLES2 platforms (e.g. Switch)
+// These are declared in gl3stub.h but only defined for Android
 #if !defined(__ANDROID__)
 GL_APICALL void (*GL_APIENTRY glCopyImageSubDataOES)(
     GLuint srcName, GLenum srcTarget, GLint srcLevel, GLint srcX, GLint srcY,
     GLint srcZ, GLuint dstName, GLenum dstTarget, GLint dstLevel, GLint dstX,
     GLint dstY, GLint dstZ, GLsizei width, GLsizei height,
     GLsizei depth) = nullptr;
+GL_APICALL void (*GL_APIENTRY glBindFragDataLocationIndexedEXT)(
+    GLuint program, GLuint colorNumber, GLuint index,
+    const GLchar *name) = nullptr;
+GL_APICALL void (*GL_APIENTRY glBindFragDataLocationEXT)(
+    GLuint program, GLuint color, const GLchar *name) = nullptr;
+GL_APICALL GLint (*GL_APIENTRY glGetProgramResourceLocationIndexEXT)(
+    GLuint program, GLenum programInterface, const GLchar *name) = nullptr;
+GL_APICALL
+GLint (*GL_APIENTRY glGetFragDataIndexEXT)(GLuint program,
+                                           const GLchar *name) = nullptr;
+#ifdef GL_EXT_buffer_storage
+GL_APICALL void (*GL_APIENTRY glBufferStorageEXT)(GLenum target,
+                                                  GLsizeiptr size,
+                                                  const void *data,
+                                                  GLbitfield flags) = nullptr;
+#endif
+// Stub for gl3stubInit - on Switch, we rely on mesa GLES3 being available
+GLboolean gl3stubInit() {
+  // Switch has GLES3 via mesa, the functions are directly available
+  return GL_TRUE;
+}
 #endif
 #endif
 #endif
