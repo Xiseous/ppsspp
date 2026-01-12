@@ -1607,8 +1607,6 @@ list(APPEND NativeAppSource
 	UI/ImDebugger/ImDebugger.h
 	UI/ImDebugger/ImGe.cpp
 	UI/ImDebugger/ImGe.h
-	UI/ImDebugger/ImConsole.cpp
-	UI/ImDebugger/ImConsole.h
 	UI/ImDebugger/ImDisasmView.cpp
 	UI/ImDebugger/ImDisasmView.h
 	UI/ImDebugger/ImMemView.cpp
@@ -1617,6 +1615,17 @@ list(APPEND NativeAppSource
 	UI/ImDebugger/ImStructViewer.h
 	UI/ImDebugger/ImJitViewer.cpp
 	UI/ImDebugger/ImJitViewer.h
+)
+
+# ImConsole depends on LuaContext which is disabled on Switch
+if(NOT USE_LIBNX)
+	list(APPEND NativeAppSource
+		UI/ImDebugger/ImConsole.cpp
+		UI/ImDebugger/ImConsole.h
+	)
+endif()
+
+list(APPEND NativeAppSource
 	UI/DiscordIntegration.cpp
 	UI/NativeApp.cpp
 	UI/BackgroundAudio.h
