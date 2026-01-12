@@ -1505,12 +1505,14 @@ int main(int argc, char *argv[]) {
 #endif
 
   bool vulkanMayBeAvailable = false;
+#if !PPSSPP_PLATFORM(SWITCH)
   if (VulkanMayBeAvailable()) {
     fprintf(stderr, "DEBUG: Vulkan might be available.\n");
     vulkanMayBeAvailable = true;
   } else {
     fprintf(stderr, "DEBUG: Vulkan is not available, not using Vulkan.\n");
   }
+#endif
 
   SDL_version compiled;
   SDL_version linked;
