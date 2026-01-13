@@ -22,6 +22,14 @@ jobs:
     - name: Mark git directory as safe
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+    - name: Update devkitPro packages for FW 21.x compatibility
+      run: |
+        # Update libnx and switch-mesa to latest versions for FW 21.0.0+ TLS ABI compatibility
+        dkp-pacman -Syu --noconfirm
+        dkp-pacman -S --noconfirm switch-dev switch-mesa switch-glad switch-glm libnx
+        # Show installed versions for debugging
+        dkp-pacman -Q libnx switch-mesa || true
+
     - name: Install dependencies
       run: |
         apt-get update
