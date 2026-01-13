@@ -22,22 +22,19 @@ jobs:
     - name: Mark git directory as safe
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-    - name: Update devkitPro packages (with retries)
+    - name: Update Switch packages for FW 21.x
       run: |
-        # libnx 4.10.0+ required for FW 21.x TLS ABI compatibility
-        # Retry logic for transient 403 errors from devkitPro servers
-        for i in 1 2 3; do
-          echo "Attempt $i: Updating devkitPro packages..."
-          if dkp-pacman -Syu --noconfirm; then
-            echo "Package update successful"
-            break
-          else
-            echo "Attempt $i failed, waiting 30 seconds..."
-            sleep 30
-          fi
-        done
-        # Show installed versions
-        dkp-pacman -Q libnx switch-mesa devkitA64 || echo "Package query failed"
+        # Try installing specific packages (avoids full DB sync that causes 403)
+        # First show current versions
+        echo "Current package versions:"
+        dkp-pacman -Q libnx switch-mesa devkitA64 2>/dev/null || true
+        
+        # Try direct package install (may work when -Syu doesn't)
+        dkp-pacman -S --noconfirm libnx switch-mesa switch-glad || echo "Package install failed, using existing versions"
+        
+        # Show final versions
+        echo "Final package versions:"
+        dkp-pacman -Q libnx switch-mesa devkitA64 || true
 
     - name: Install dependencies
       run: |
