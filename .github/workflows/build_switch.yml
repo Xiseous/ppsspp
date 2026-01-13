@@ -79,7 +79,7 @@ jobs:
         ls -R lib
         find . -name "PPSSPP*"
         nacptool --create "PPSSPP" "PPSSPP Team" "1.19.3" ppsspp.nacp
-        elf2nro PPSSPPSDL PPSSPP.nro --nacp=ppsspp.nacp --icon=../icons/icon-114.png
+        elf2nro PPSSPPSDL.elf PPSSPP.nro --nacp=ppsspp.nacp --icon=../icons/icon-114.png
 
     - name: List build outputs
       if: always()
