@@ -366,7 +366,7 @@ bool SDLGLGraphicsContext::InitFromRenderThread(std::string *errorMessage) {
 int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int w, int h,
                                int mode, std::string *error_message,
                                int force_gl_version) {
-#if PPSSPP_PLATFORM(SWITCH)
+#if PPSSPP_PLATFORM(SWITCH) && defined(USING_EGL)
   // On Switch, we MUST use EGL exclusively. SDL_GL_CreateContext doesn't
   // properly initialize Mesa's dispatch table, causing crashes when calling
   // GL functions like glGetString(). We skip SDL window/context creation
@@ -402,8 +402,10 @@ int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int w, int h,
       Draw::NativeObject::RENDER_MANAGER);
   renderManager_->SetInflightFrames(g_Config.iInflightFrames);
   SetGPUBackend(GPUBackend::OPENGL);
-  bool success = draw_->CreatePresets();
-  _assert_(success);
+  {
+    bool success = draw_->CreatePresets();
+    _assert_(success);
+  }
   renderManager_->SetSwapFunction(
       [&]() { eglSwapBuffers(g_eglDisplay, g_eglSurface); });
   renderManager_->SetSwapIntervalFunction([&](int interval) {
