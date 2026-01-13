@@ -22,10 +22,22 @@ jobs:
     - name: Mark git directory as safe
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-    - name: Check devkitPro package versions
+    - name: Update devkitPro packages (with retries)
       run: |
-        # Log installed versions for debugging (libnx 4.10.0+ required for FW 21.x)
-        dkp-pacman -Q libnx switch-mesa devkitA64 || echo "Some packages not found"
+        # libnx 4.10.0+ required for FW 21.x TLS ABI compatibility
+        # Retry logic for transient 403 errors from devkitPro servers
+        for i in 1 2 3; do
+          echo "Attempt $i: Updating devkitPro packages..."
+          if dkp-pacman -Syu --noconfirm; then
+            echo "Package update successful"
+            break
+          else
+            echo "Attempt $i failed, waiting 30 seconds..."
+            sleep 30
+          fi
+        done
+        # Show installed versions
+        dkp-pacman -Q libnx switch-mesa devkitA64 || echo "Package query failed"
 
     - name: Install dependencies
       run: |
