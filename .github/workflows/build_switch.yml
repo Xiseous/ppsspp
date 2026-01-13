@@ -46,7 +46,9 @@ jobs:
           wget -q "https://github.com/hrydgard/ppsspp/raw/v1.19.3/android/assets/ui_atlas.zim" -O android/assets/ui_atlas.zim || true
           wget -q "https://github.com/hrydgard/ppsspp/raw/v1.19.3/android/assets/ui_atlas.meta" -O android/assets/ui_atlas.meta || true
         fi
-        ls -la android/assets/ 2>/dev/null || echo "Assets directory check"
+        # Copy ui_atlas to main assets folder for Switch packaging
+        cp android/assets/ui_atlas.* assets/ 2>/dev/null || true
+        ls -la assets/ui_atlas* 2>/dev/null || echo "ui_atlas not found"
         
     - name: Patch Lua Headers for C++ Compatibility
       run: cp ext/lua-fixed/*.h ext/lua/
