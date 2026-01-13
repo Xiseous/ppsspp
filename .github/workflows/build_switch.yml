@@ -75,11 +75,20 @@ jobs:
       run: |
         . /etc/profile.d/devkit-env.sh
         cd build-switch
-        ls -la
-        ls -R lib
-        find . -name "PPSSPP*"
         nacptool --create "PPSSPP" "PPSSPP Team" "1.19.3" ppsspp.nacp
         elf2nro PPSSPPSDL.elf PPSSPP.nro --nacp=ppsspp.nacp --icon=../icons/icon-114.png
+
+    - name: Package for Switch
+      run: |
+        mkdir -p ppsspp-switch/switch/ppsspp
+        cp build-switch/PPSSPP.nro ppsspp-switch/switch/ppsspp/
+        cp -r assets ppsspp-switch/switch/ppsspp/
+        # Remove unnecessary files from assets to reduce size
+        rm -rf ppsspp-switch/switch/ppsspp/assets/debugger || true
+        rm -rf ppsspp-switch/switch/ppsspp/assets/upload || true
+        echo "Package contents:"
+        ls -la ppsspp-switch/switch/ppsspp/
+        du -sh ppsspp-switch/
 
     - name: List build outputs
       if: always()
@@ -95,13 +104,18 @@ jobs:
           build-switch/CMakeFiles/*.log
           build-switch/build.log
         
-    - name: Upload artifacts
+    - name: Upload Switch Package
       uses: actions/upload-artifact@v4
       if: success()
       with:
         name: ppsspp-switch
-        path: |
-          build-switch/PPSSPP*
-          build-switch/*.nro
-          build-switch/*.elf
+        path: ppsspp-switch/
+        if-no-files-found: error
+
+    - name: Upload ELF (for debugging)
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: ppsspp-switch-debug
+        path: build-switch/PPSSPPSDL.elf
         if-no-files-found: ignore
