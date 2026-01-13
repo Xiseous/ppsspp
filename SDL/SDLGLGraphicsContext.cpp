@@ -366,6 +366,55 @@ bool SDLGLGraphicsContext::InitFromRenderThread(std::string *errorMessage) {
 int SDLGLGraphicsContext::Init(SDL_Window *&window, int x, int y, int w, int h,
                                int mode, std::string *error_message,
                                int force_gl_version) {
+#if PPSSPP_PLATFORM(SWITCH)
+  // On Switch, we MUST use EGL exclusively. SDL_GL_CreateContext doesn't
+  // properly initialize Mesa's dispatch table, causing crashes when calling
+  // GL functions like glGetString(). We skip SDL window/context creation
+  // entirely and use our own EGL setup with nwindowGetDefault().
+
+  // Create a minimal SDL window without OpenGL flag (just for event handling)
+  mode &= ~SDL_WINDOW_OPENGL;
+  mode |= SDL_WINDOW_FULLSCREEN;
+  window = SDL_CreateWindow("PPSSPP", 0, 0, 1280, 720, mode);
+  if (!window) {
+    fprintf(stderr, "SDL_CreateWindow failed on Switch: %s\n", SDL_GetError());
+    return 2;
+  }
+  SDL_ShowWindow(window);
+
+  // Initialize EGL directly (this sets up Mesa properly via
+  // nwindowGetDefault())
+  if (EGL_Open(window) != 0) {
+    fprintf(stderr, "EGL_Open() failed on Switch\n");
+    return 1;
+  }
+  if (EGL_Init(window) != 0) {
+    fprintf(stderr, "EGL_Init() failed on Switch\n");
+    return 1;
+  }
+  useEGLSwap = true;
+
+  // Now we can safely call GL functions
+  SetGLCoreContext(false); // Switch uses GLES
+  CheckGLExtensions();
+  draw_ = Draw::T3DCreateGLContext(true);
+  renderManager_ = (GLRenderManager *)draw_->GetNativeObject(
+      Draw::NativeObject::RENDER_MANAGER);
+  renderManager_->SetInflightFrames(g_Config.iInflightFrames);
+  SetGPUBackend(GPUBackend::OPENGL);
+  bool success = draw_->CreatePresets();
+  _assert_(success);
+  renderManager_->SetSwapFunction(
+      [&]() { eglSwapBuffers(g_eglDisplay, g_eglSurface); });
+  renderManager_->SetSwapIntervalFunction([&](int interval) {
+    INFO_LOG(Log::G3D, "Switch EGL SwapInterval: %d", interval);
+    // Note: EGL swap interval control may be limited on Switch
+  });
+
+  window_ = window;
+  return 0;
+#endif
+
   struct GLVersionPair {
     int major;
     int minor;
