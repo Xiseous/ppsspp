@@ -22,19 +22,16 @@ jobs:
     - name: Mark git directory as safe
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-    - name: Update Switch packages for FW 21.x
+    - name: Install bundled libnx and switch-mesa for FW 21.x
       run: |
-        # Try installing specific packages (avoids full DB sync that causes 403)
-        # First show current versions
-        echo "Current package versions:"
-        dkp-pacman -Q libnx switch-mesa devkitA64 2>/dev/null || true
-        
-        # Try direct package install (may work when -Syu doesn't)
-        dkp-pacman -S --noconfirm libnx switch-mesa switch-glad || echo "Package install failed, using existing versions"
-        
-        # Show final versions
-        echo "Final package versions:"
-        dkp-pacman -Q libnx switch-mesa devkitA64 || true
+        # Install bundled packages from repo (avoids 403 from devkitPro servers)
+        # These packages were downloaded from wii.leseratte10.de mirror
+        echo "Installing bundled libnx-4.10.0 and switch-mesa-20.1.0-5..."
+        dkp-pacman -U --noconfirm switch-packages/libnx-4.10.0-1-any.pkg.tar.zst
+        dkp-pacman -U --noconfirm switch-packages/switch-mesa-20.1.0-5-any.pkg.tar.zst
+        # Verify installed versions
+        echo "Installed package versions:"
+        dkp-pacman -Q libnx switch-mesa devkitA64
 
     - name: Install dependencies
       run: |
