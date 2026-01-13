@@ -241,6 +241,8 @@ if(USE_LIBNX)
 	set(USE_SYSTEM_SNAPPY OFF)
 	set(USE_SYSTEM_FFMPEG OFF)
 	set(USING_QT_UI OFF)
+	# Enable EGL for Switch - required for proper Mesa GL initialization
+	set(USING_EGL ON)
 	# Disable HarfBuzz in freetype to avoid linking libdl
 	set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable HarfBuzz for Switch" FORCE)
 	set(FT_DYNAMIC_HARFBUZZ OFF CACHE BOOL "Disable dynamic HarfBuzz for Switch" FORCE)
