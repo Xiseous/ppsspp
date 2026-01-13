@@ -341,7 +341,7 @@ void EGL_Close() {
     g_eglDisplay = EGL_NO_DISPLAY;
   }
   if (g_Display != nullptr) {
-#if !defined(USING_FBDEV)
+#if !defined(USING_FBDEV) && !PPSSPP_PLATFORM(SWITCH)
     if (g_XDisplayOpen)
       XCloseDisplay((Display *)g_Display);
 #endif
