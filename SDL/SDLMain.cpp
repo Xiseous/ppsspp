@@ -784,7 +784,11 @@ bool System_GetPropertyBool(SystemProperty prop) {
     return false;
 #endif
   case SYSPROP_CAN_JIT:
+#if PPSSPP_PLATFORM(SWITCH)
+    return false; // Disable JIT on Switch to test crash isolation
+#else
     return true;
+#endif
   case SYSPROP_SUPPORTS_OPEN_FILE_IN_EDITOR:
     return true; // FileUtil.cpp: OpenFileInEditor
 #ifndef HTTPS_NOT_AVAILABLE
