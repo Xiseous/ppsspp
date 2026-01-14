@@ -804,6 +804,11 @@ if(NOT USE_LIBNX)
 		Common/GPU/OpenGL/gl3stub.c
 		Common/GPU/OpenGL/gl3stub.h
 	)
+else()
+	# Use stb_image instead of libpng on Switch (libpng crashes in png_read_process_IDAT)
+	list(APPEND NativeAppSource
+		ext/stb/stb_image_impl.cpp
+	)
 endif()
 list(APPEND NativeAppSource
 	Common/GPU/OpenGL/GLFeatures.cpp
