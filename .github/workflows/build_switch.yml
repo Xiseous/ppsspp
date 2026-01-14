@@ -89,7 +89,7 @@ jobs:
         . /etc/profile.d/devkit-env.sh
         cd build-switch
         nacptool --create "PPSSPP" "PPSSPP Team" "1.19.3" ppsspp.nacp
-        elf2nro PPSSPPSDL.elf PPSSPP.nro --nacp=ppsspp.nacp --icon=../icons/hicolor/256x256/apps/ppsspp.png
+        elf2nro PPSSPPSDL.elf PPSSPP.nro --nacp=ppsspp.nacp --icon=../icons/ppsspp-256x256.jpg
 
     - name: Package for Switch
       run: |
