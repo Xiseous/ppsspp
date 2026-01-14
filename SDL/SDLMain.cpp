@@ -1496,7 +1496,9 @@ int main(int argc, char *argv[]) {
 #endif // HAVE_LIBNX
 
   PROFILE_INIT();
+#if !PPSSPP_PLATFORM(SWITCH)
   glslang::InitializeProcess();
+#endif
 
 #if PPSSPP_PLATFORM(RPI)
   bcm_host_init();
@@ -2017,7 +2019,9 @@ int main(int argc, char *argv[]) {
   bcm_host_deinit();
 #endif
 
+#if !PPSSPP_PLATFORM(SWITCH)
   glslang::FinalizeProcess();
+#endif
   fprintf(stderr, "Leaving main\n");
 #ifdef HAVE_LIBNX
   socketExit();
