@@ -114,13 +114,23 @@ static bool EGL_OpenInit() {
 
 static int8_t EGL_Open(SDL_Window *window) {
 #if PPSSPP_PLATFORM(SWITCH)
+  // RetroArch-inspired improvements for Mesa/Nouveau stability:
+  // Disable Mesa GL error checking - improves performance and prevents crashes
+  // from non-fatal GL errors
+  setenv("MESA_NO_ERROR", "1", 1);
+
   // Switch uses EGL_DEFAULT_DISPLAY and nwindowGetDefault() for the native
   // window
   g_Display = (EGLNativeDisplayType)EGL_DEFAULT_DISPLAY;
   g_Window = (EGLNativeWindowType)nwindowGetDefault();
   if (!g_Window) {
     fprintf(stderr, "ERROR: nwindowGetDefault() returned null\n");
+    return 1;
   }
+
+  // Set native window dimensions before EGL init (like RetroArch does)
+  // This ensures the framebuffer is properly sized for docked mode
+  nwindowSetDimensions((NWindow *)g_Window, 1920, 1080);
 #elif defined(USING_FBDEV)
   g_Display = (EGLNativeDisplayType) nullptr;
   g_Window = (EGLNativeWindowType) nullptr;
