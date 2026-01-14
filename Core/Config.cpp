@@ -2235,6 +2235,33 @@ void Config::PostLoadCleanup() {
   // Clamp save state slot count to somewhat sane limits.
   g_Config.iSaveStateSlotCount =
       std::clamp(g_Config.iSaveStateSlotCount, 1, 100);
+
+#if PPSSPP_PLATFORM(SWITCH)
+  // Switch-specific defaults for Tegra X1 / Mesa Nouveau stability
+  // Force OpenGL backend (only option for Switch homebrew)
+  g_Config.iGPUBackend = (int)GPUBackend::OPENGL;
+
+  // Disable features not supported on Switch
+  g_Config.bEnableVR = false;
+  g_Config.bStereoRendering = false;
+  g_Config.bDiscordRichPresence = false;
+  g_Config.bCheckForNewVersion = false;
+
+  // Stability settings for Mesa Nouveau driver
+  g_Config.bRenderMultiThreading = false; // Avoid Mesa threading issues
+  g_Config.iMultiSampleLevel = 0;         // MSAA not stable on Mesa
+  g_Config.bHardwareTessellation = false; // May crash on Mesa
+  g_Config.bUseGeometryShader = false;    // May not work on Mesa
+  g_Config.iDepthRasterMode = 0; // Disable software depth raster (crash source)
+
+  // Performance settings for Tegra X1
+  g_Config.bHardwareTransform = true; // Essential for GPU acceleration
+  g_Config.iInflightFrames = 2;       // Balance latency vs stability
+  g_Config.bVSync = true;             // Prevent tearing
+
+  // Memory conservation (Switch has ~4GB shared RAM)
+  g_Config.bCacheFullIsoInRam = false; // Don't cache ISOs in RAM
+#endif
 }
 
 void Config::PreSaveCleanup() {
