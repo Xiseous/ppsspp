@@ -2265,9 +2265,12 @@ void Config::PostLoadCleanup() {
   g_Config.iSkipGPUReadbackMode = 1;  // 1 = skip GPU readback
   g_Config.bSkipBufferEffects = true; // Skip buffer effects that need readback
 
-  // Use uber shaders to avoid individual shader compilation issues
-  g_Config.bUberShaderVertex = true;
-  g_Config.bUberShaderFragment = true;
+  // Use simpler GLSL shaders instead of uber shaders
+  // Uber shaders require more shader introspection which crashes on Mesa
+  g_Config.bUberShaderVertex = false;
+  g_Config.bUberShaderFragment = false;
+  g_Config.bShaderCache =
+      false; // Disable shader cache to avoid corrupted cache
 
   // Disable texture replacement to avoid file I/O during rendering
   g_Config.bReplaceTextures = false;
