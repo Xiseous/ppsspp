@@ -2246,6 +2246,7 @@ void Config::PostLoadCleanup() {
   g_Config.bStereoRendering = false;
   g_Config.bDiscordRichPresence = false;
   g_Config.bCheckForNewVersion = false;
+  g_Config.bShowImDebugger = false; // ImDebugger may cause startup issues
 
   // Stability settings for Mesa Nouveau driver
   g_Config.bRenderMultiThreading = false; // Avoid Mesa threading issues
@@ -2258,6 +2259,14 @@ void Config::PostLoadCleanup() {
   // Crash was in save_CopyMultiTexSubImage3DEXT during texture operations
   g_Config.iSkipGPUReadbackMode = 1;  // 1 = skip GPU readback
   g_Config.bSkipBufferEffects = true; // Skip buffer effects that need readback
+
+  // Use uber shaders to avoid individual shader compilation issues
+  g_Config.bUberShaderVertex = true;
+  g_Config.bUberShaderFragment = true;
+
+  // Disable texture replacement to avoid file I/O during rendering
+  g_Config.bReplaceTextures = false;
+  g_Config.bSaveNewTextures = false;
 
   // Performance settings for Tegra X1
   g_Config.bHardwareTransform = true; // Essential for GPU acceleration
