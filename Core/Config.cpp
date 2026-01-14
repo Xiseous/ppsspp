@@ -2248,6 +2248,11 @@ void Config::PostLoadCleanup() {
   g_Config.bCheckForNewVersion = false;
   g_Config.bShowImDebugger = false; // ImDebugger may cause startup issues
 
+  // Disable remote debugging/sharing (crash in DebuggerRequest::Fail)
+  g_Config.bRemoteDebuggerOnStartup = false;
+  g_Config.bRemoteShareOnStartup = false;
+  g_Config.bRemoteTab = false;
+
   // Stability settings for Mesa Nouveau driver
   g_Config.bRenderMultiThreading = false; // Avoid Mesa threading issues
   g_Config.iMultiSampleLevel = 0;         // MSAA not stable on Mesa
