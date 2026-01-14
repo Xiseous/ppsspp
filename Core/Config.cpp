@@ -2283,6 +2283,12 @@ void Config::PostLoadCleanup() {
 
   // Memory conservation (Switch has ~4GB shared RAM)
   g_Config.bCacheFullIsoInRam = false; // Don't cache ISOs in RAM
+
+  // Disable post-processing shaders (glslang crashes in
+  // TParseContext::builtInOpCheck) Post shaders require shader translation
+  // which uses glslang
+  g_Config.vPostShaderNames.clear();
+  g_Config.sStereoToMonoShader.clear();
 #endif
 }
 
