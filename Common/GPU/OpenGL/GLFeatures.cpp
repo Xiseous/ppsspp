@@ -366,6 +366,21 @@ bool CheckGLExtensions() {
         INFO_LOG(Log::G3D, "OpenGL ES 3.0 support detected!\n");
       }
     }
+
+#if PPSSPP_PLATFORM(SWITCH)
+    // Force GLES2 mode on Switch - Mesa Nouveau's GLES3 implementation
+    // crashes in _mesa_TextureBufferRange and
+    // util_format_r8_uint_unpack_unsigned during UI texture operations. GLES2
+    // is more stable.
+    if (gl_extensions.GLES3) {
+      INFO_LOG(
+          Log::G3D,
+          "Switch: Forcing GLES2 mode to avoid Mesa Nouveau GLES3 crashes\n");
+      gl_extensions.GLES3 = false;
+      gl_extensions.ver[0] = 2;
+      gl_extensions.ver[1] = 0;
+    }
+#endif
   }
 
   const char *extString = nullptr;
