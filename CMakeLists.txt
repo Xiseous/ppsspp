@@ -2637,7 +2637,9 @@ if(NOT USE_LIBNX)
 endif()
 
 if(USE_LIBNX)
-	target_link_libraries(${CoreLibName} Common native kirk cityhash sfmt19937 xbrz xxhash minimp3 at3_standalone lua ${GlslangLibs}
+	# Switch build: Exclude glslang which crashes in HlslParseContext::assignClipCullDistance
+	# Switch uses GLES2 without shader translation, so glslang is not needed
+	target_link_libraries(${CoreLibName} Common native kirk cityhash sfmt19937 xbrz xxhash minimp3 at3_standalone lua
 		${LIBZIP_LIBRARY} ${ZLIB_LIBRARY} ${PNG_LIBRARIES}
 		${CoreExtraLibs} ${OPENGL_LIBRARIES} ${X11_LIBRARIES})
 else()
