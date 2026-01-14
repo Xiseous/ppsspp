@@ -2254,6 +2254,11 @@ void Config::PostLoadCleanup() {
   g_Config.bUseGeometryShader = false;    // May not work on Mesa
   g_Config.iDepthRasterMode = 0; // Disable software depth raster (crash source)
 
+  // Disable GPU readback/texture copy operations that crash in Mesa
+  // Crash was in save_CopyMultiTexSubImage3DEXT during texture operations
+  g_Config.iSkipGPUReadbackMode = 1;  // 1 = skip GPU readback
+  g_Config.bSkipBufferEffects = true; // Skip buffer effects that need readback
+
   // Performance settings for Tegra X1
   g_Config.bHardwareTransform = true; // Essential for GPU acceleration
   g_Config.iInflightFrames = 2;       // Balance latency vs stability
