@@ -243,6 +243,9 @@ if(USE_LIBNX)
 	set(USING_QT_UI OFF)
 	# Enable EGL for Switch - required for proper Mesa GL initialization
 	set(USING_EGL ON)
+	# Enable FBDEV mode to use NULL display/window instead of X11
+	# This is how m4xw's port and RetroArch avoid X11-specific Mesa paths
+	set(USING_FBDEV ON)
 	# Disable HarfBuzz in freetype to avoid linking libdl
 	set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable HarfBuzz for Switch" FORCE)
 	set(FT_DYNAMIC_HARFBUZZ OFF CACHE BOOL "Disable dynamic HarfBuzz for Switch" FORCE)
