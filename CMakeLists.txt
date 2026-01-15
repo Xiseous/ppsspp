@@ -255,6 +255,10 @@ if(USE_LIBNX)
 	set(OPENGL_LIBRARIES GLESv2 EGL glapi drm_nouveau)
 	# Ensure bundled libpng17 headers are found before system libpng headers
 	include_directories(BEFORE ext/libpng17)
+	# Add RetroArch-style defines for Switch to avoid Linux-specific Mesa code paths
+	# RetroArch uses: -D__SWITCH__=1 -U__linux__ -U__linux -DSWITCH=1
+	add_compile_definitions(__SWITCH__=1 SWITCH=1)
+	add_compile_options(-U__linux__ -U__linux)
 endif()
 
 if(UNIX AND NOT (APPLE OR ANDROID OR USE_LIBNX) AND VULKAN)
