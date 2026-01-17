@@ -401,6 +401,19 @@ else ifneq (,$(findstring windows_msvc2019,$(platform)))
 	GL_LIB := opengl32.lib
 	LDFLAGS += ws2_32.lib user32.lib shell32.lib avcodec.lib avutil.lib swresample.lib swscale.lib avformat.lib advapi32.lib winmm.lib gdi32.lib Iphlpapi.lib
 
+# Nintendo Switch (libnx)
+else ifeq ($(platform), libnx)
+	TARGET := $(TARGET_NAME)_libretro_libnx.a
+	TARGET_ARCH := arm64
+	STATIC_LINKING := 1
+	GLES := 1
+	HAVE_NEON := 1
+	CPUFLAGS += -D__aarch64__ -DARM64_ASM -D__NEON_OPT
+	COREFLAGS += -DHAVE_LIBNX -D__SWITCH__ -DUSING_GLES2 -DHTTPS_NOT_AVAILABLE
+	CPUFLAGS += -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -ftls-model=local-exec
+	CPUFLAGS += -ffunction-sections -fdata-sections
+	PLATFORM_EXT := libnx
+
 # Windows
 else ifneq (,$(findstring win,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dll
